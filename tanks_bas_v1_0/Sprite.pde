@@ -3,6 +3,7 @@ class Sprite {
   PVector position;
   String name;
   float diameter, radius;
+  PImage img;
   
   //**************************************************
   public String getName(){

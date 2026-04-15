@@ -2,19 +2,18 @@ class Tank extends Sprite {
 
   PVector acceleration;
   PVector velocity;
-  PVector position;
-
 
   PVector startpos;
   int tank_id;
   Team team;
 
-  PImage img;
   color col;
   float diameter;
 
   float speed;
   float maxspeed;
+
+  float turnStep;
 
   float rotation;
   float rotationSpeed;
@@ -24,7 +23,6 @@ class Tank extends Sprite {
   float targetHeading;
 
   float maxforce;
-
 
   int state;
   boolean isInTransition;
@@ -50,10 +48,13 @@ class Tank extends Sprite {
     this.position     = new PVector(this.startpos.x, this.startpos.y);
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
+    // At the end of Tank constructor:
+
 
     this.state        = 0; //0(still), 1(moving)
     this.speed        = velocity.mag();
     this.maxspeed     = 3;
+    this.turnStep     = 0.05; // radians per update
     this.isInTransition = false;
 
     if (this.team.getId() == 0) this.heading = radians(0); // "0" radians.
@@ -67,8 +68,13 @@ class Tank extends Sprite {
     borders();
   }
 
-  void checkForCollisions(Sprite sprite) {
-  }
+
+boolean isColliding( PVector otherposition, float otherRadius) {
+
+  float d = dist(position.x, position.y, otherposition.x, otherposition.y);
+  return d < (tank_size/2 + otherRadius);
+}
+
 
   void checkForCollisions(PVector vec) {
     checkEnvironment();
@@ -94,7 +100,7 @@ class Tank extends Sprite {
     force.mult(0.1);
     if (this.tank_id == 1)
     {
-      println("SPEED: " + this.speed);
+      println(targetNode.row + " " + targetNode.col);
     }
 
     applyForce(force);
@@ -118,25 +124,33 @@ class Tank extends Sprite {
   void turnToTarget() {
     if (targetNode == null) return;
 
-    // 1. Find the angle to the target
     float angleToTarget = atan2(targetNode.position.y - position.y, targetNode.position.x - position.x);
-
-    // 2. Calculate the difference
     float angleDiff = angleToTarget - heading;
 
-    // 3. Normalize the angle (so it doesn't spin 300 degrees to turn 60)
     while (angleDiff < -PI) angleDiff += TWO_PI;
-    while (angleDiff > PI) angleDiff -= TWO_PI;
+    while (angleDiff > PI)  angleDiff -= TWO_PI;
 
-    // 4. Rotate based on a fixed rotation speed
-    float turnStep = 0.05;
     if (abs(angleDiff) > turnStep) {
       heading += (angleDiff > 0) ? turnStep : -turnStep;
     } else {
-      heading = angleToTarget; // We are facing the target
+      heading = angleToTarget;
     }
   }
 
+  boolean isLookingAtTarget() {
+    if (targetNode == null) return false;
+
+    float angleToTarget = atan2(targetNode.position.y - position.y, targetNode.position.x - position.x);
+    float angleDiff = angleToTarget - heading;
+
+    while (angleDiff < -PI) angleDiff += TWO_PI;
+    while (angleDiff > PI)  angleDiff -= TWO_PI;
+
+    // Use half the turnStep as tolerance — tight enough to look accurate,
+    // loose enough that the tank never stutters at the threshold
+    float tolerance = turnStep * 0.5;
+    return abs(angleDiff) < tolerance;
+  }
 
 
   void stopMoving() {
@@ -144,6 +158,7 @@ class Tank extends Sprite {
 
     // hade varit finare med animering!
     this.velocity.x = 0;
+    this.velocity.y = 0;
   }
 
   //======================================
@@ -152,33 +167,22 @@ class Tank extends Sprite {
 
     switch (_action) {
     case "search":
+
+      moveTo(targetNode);
+
       turnToTarget();
-
-      if (isFound == false) {
-        targetNode = grid.getNearestNode(position);
-        if (targetNode != null) {
-          isFound = true;
-        }
-      } else
-      {
-        //state = 4; // Move state
+      if (isLookingAtTarget()) {
+        if (targetNode != null) moveForward();
+      } else {
+        stopMoving();
       }
-
-      // Only move forward if we are roughly facing the target
-      if (targetNode != null) {
-        float angleToTarget = atan2(targetNode.position.y - position.y, targetNode.position.x - position.x);
-        if (abs(angleToTarget - heading) < 0.5) { // within ~30 degrees
-          moveForward();
-        }
-
-        if (PVector.dist(position, targetNode.position) < 5) {
-          isFound = true; // Target reached, search for a new one
-        }
+      if (isAtGoalNode(targetNode)) {
+        println("Reached target node at row " + targetNode.row + ", col " + targetNode.col);
+        state = 4;
       }
-
       break;
     case "report":
-      moveBackward();
+      //moveBackward();
       break;
     case "turning":
       break;
@@ -269,10 +273,6 @@ class Tank extends Sprite {
   }
 
 
-  boolean isAtTarget() {
-    if (targetNode == null) return false;
-    return position.dist(targetNode.position) < 5; // within 5 pixels
-  }
 
 
 
@@ -284,27 +284,54 @@ class Tank extends Sprite {
 
 
   void bfsSearch(Node startNode) {
-    ArrayList<Node> queue = new ArrayList<Node>();
+    if (startNode == null) {           // ← guard: currentNode wasn't set yet
+      currentNode = grid.getNearestNode(position);
+      if (currentNode == null) return; // grid not ready
+      startNode = currentNode;
+    }
 
+    grid.resetVisited();
+    ArrayList<Node> queue = new ArrayList<Node>();
     startNode.visited = true;
-    startNode.parent = null; // The start has no parent
+    startNode.parent  = null;
     queue.add(startNode);
 
     while (queue.size() > 0) {
       Node current = queue.remove(0);
-
-      if (isAtGoalNode(current)) {
-        return; // Stop! We found the goal.
+      if (isAtGoalNode(current))
+      {
+        //targetNode = current;
+        return;
       }
 
       for (Node neighbor : current.neighbors) {
-        // THE CRITICAL CHECK:
         if (!neighbor.visited) {
           neighbor.visited = true;
-          neighbor.parent = current; // Link it back
+          neighbor.parent  = current;
           queue.add(neighbor);
         }
       }
+    }
+  }
+
+  void followPath(Node goalNode) {
+    if (goalNode == null || !goalNode.visited) return;
+
+    // Walk back from goal to find the first step after currentNode
+    Node step = goalNode;
+    while (step.parent != null && step.parent != currentNode) {
+      step = step.parent;
+    }
+
+    targetNode = step;   // turnToTarget() + moveForward() will do the rest
+    turnToTarget();
+    if (targetNode != null) moveForward();
+
+    // Advance currentNode when we arrive
+    if (isAtTarget()) {
+      currentNode = targetNode;
+      targetNode  = null;
+      stopMoving();
     }
   }
 
@@ -312,5 +339,14 @@ class Tank extends Sprite {
     if (targetNode == null) return false;
     return position.dist(targetNode.position) < 5; // within 5 pixels
   }
-}
 
+  boolean isAtTarget() {
+    if (targetNode == null) return false;
+    return position.dist(targetNode.position) < 5; // within 5 pixels
+  }
+
+
+  void goBackToBase() {
+    moveTo(grid.getNearestNode(startpos));
+  }
+}

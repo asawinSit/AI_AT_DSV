@@ -3,60 +3,64 @@ class Grid {
   int grid_size;
   Node[][] nodes;
 
-  //***************************************************  
   Grid(int _cols, int _rows, int _grid_size) {
     cols = _cols;
     rows = _rows;
     grid_size = _grid_size;
     nodes = new Node[cols][rows];
 
-    createGrgetId();
+    createGrid();
   }
 
-  //***************************************************  
-  void createGrgetId() {
+  Node getNode(int row, int col)
+  {
+    return nodes[row][col];
+  }
 
-    for (int i = 0; i < cols; i++) {
-      for (int j = 0; j < rows; j++) {
-        // Initialize each object
+  Node getRandomNode() {
+    int randCol = (int) random(cols);
+    int randRow = (int) random(rows);
+    return nodes[randCol][randRow];
+  }
+
+  void createGrid() { // ← FIX 2: was "createGrgetId" (typo)
+    for (int i = 0; i < cols; i++)
+      for (int j = 0; j < rows; j++)
         nodes[i][j] = new Node(i, j, i*grid_size+grid_size, j*grid_size+grid_size);
-      }
-    }
 
-    for (int i = 0; i < cols; i++) {
-    for (int j = 0; j < rows; j++) {
-      addNeighbors(nodes[i][j]);
-    }
-  }
+    for (int i = 0; i < cols; i++)
+      for (int j = 0; j < rows; j++)
+        addNeighbors(nodes[i][j]);
   }
 
   void addNeighbors(Node n) {
-  for (int xOffset = -1; xOffset <= 1; xOffset++) {
-    for (int yOffset = -1; yOffset <= 1; yOffset++) {
-      // Skip the node itself (0,0 offset)
-      if (xOffset == 0 && yOffset == 0) continue;
-      
-      // If you only want 4-way movement (no diagonals):
-      // if (abs(xOffset) + abs(yOffset) > 1) continue;
-
-      int checkCol = n.col + xOffset;
-      int checkRow = n.row + yOffset;
-
-      // Make sure the neighbor is inside the screen boundaries
-      if (checkCol >= 0 && checkCol < cols && checkRow >= 0 && checkRow < rows) {
-        n.neighbors.add(nodes[checkCol][checkRow]);
+    for (int dx = -1; dx <= 1; dx++) {
+      for (int dy = -1; dy <= 1; dy++) {
+        if (dx == 0 && dy == 0) continue;
+        int cc = n.col + dx;
+        int cr = n.row + dy;
+        if (cc >= 0 && cc < cols && cr >= 0 && cr < rows) {
+          n.neighbors.add(nodes[cc][cr]); // ← FIX 3: was commented out, so no neighbors were ever added
+        }
       }
     }
   }
-}
 
+  // FIX 4: Call this before every bfsSearch() call, otherwise visited=true
+  // stays set from the previous run and BFS finds nothing on the second call
+  void resetVisited() {
+    for (Node[] col : nodes)
+      for (Node n : col)
+        n.visited = false;
+  }
 
-  //***************************************************  
   void display() {
+    Node n;
     for (int i = 0; i < cols; i++) {
       for (int j = 0; j < rows; j++) {
-        // Initialize each object
-        ellipse(nodes[i][j].position.x, nodes[i][j].position.y, 5.0, 5.0);
+        n = nodes[i][j];
+       fill(n.getColor());
+        ellipse(n.position.x, n.position.y, n.w, n.h);
         //println("nodes[i][j].position.x: " + nodes[i][j].position.x);
         //println(nodes[i][j]);
       }
@@ -64,9 +68,7 @@ class Grid {
     }
   }
 
-
-  //***************************************************  
-  Node getNearestNode(PVector pvec) {
+   Node getNearestNode(PVector pvec) {
     // En justering för extremvärden.
     float tempx = pvec.x;
     float tempy = pvec.y;
@@ -103,58 +105,10 @@ class Grid {
     return nearestNode;
   }
 
-  // Node getNearestNodePosition(PVector pvec) {
-
-  //  ArrayList<Node> nearestNodes = new ArrayList<Node>();
-
-  //  for (int i = 0; i < cols; i++) {
-  //    for (int j = 0; j < rows; j++) {
-  //      if (nodes[i][j].position.dist(pvec) < grid_size) {
-  //        nearestNodes.add(nodes[i][j]);      
-  //      }
-  //    }
-  //  }
-
-  //  Node nearestNode = new Node(0,0);
-  //  for (int i = 0; i < nearestNodes.size(); i++) {
-  //    if (nearestNodes.get(i).position.dist(pvec) < nearestNode.position.dist(pvec) ) {
-  //      nearestNode = nearestNodes.get(i);
-  //    }
-  //  }
-
-  //  return nearestNode;
-  //}
-  
-  //***************************************************  
-  PVector getNearestNodePosition(PVector pvec) {
-    Node n = getNearestNode(pvec);
-    
-    return n.position;
+  void setNodeColor(Node node, color c) {
+    fill(c);
+    strokeWeight(1);
+    ellipse(node.position.x, node.position.y, node.w, node.h);
   }
-
-  //***************************************************  
-  void displayNearestNode(PVector pvec) {
-
-    PVector vec = getNearestNodePosition(pvec);
-    ellipse(vec.x, vec.y, 5, 5);
-  }
-
-  //***************************************************  
-  PVector getRandomNodePosition() {
-    int c = int(random(cols));
-    int r = int(random(rows));
-
-    PVector rn = nodes[c][r].position;
-
-    return rn;
-  }
-  
-  //***************************************************
-  // Används troligen tillsammans med getNearestNode().empty
-  // om tom så addContent(Sprite)
-  void addContent(Sprite s) {
-    Node n = getNearestNode(s.position);
-    n.addContent(s);
-  }
-  
 }
+

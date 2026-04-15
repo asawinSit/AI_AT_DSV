@@ -56,10 +56,14 @@ void setup()
   debug = false;
 
   // Trad
-  tree_img = loadImage("tree01_v2.png");
+
   tree1_pos = new PVector(230, 600);
   tree2_pos = new PVector(280, 230);
   tree3_pos = new PVector(530, 520);
+
+    allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
+    allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
+    allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
 
   tank_size = 50;
 
@@ -91,9 +95,42 @@ void setup()
   allTanks[4] = team1.tanks[1];
   allTanks[5] = team1.tanks[2];
 
+  selectedTank = allTanks[0]; // Start with the first tank selected
+  selectedTank.state = 0; // Set initial state to "move"
+
   grid = new Grid(cols, rows, grid_size);
+  setBaseNodesForTeam(team0, true);
+  setBaseNodesForTeam(team1, false);
 }
 
+void setBaseNodesForTeam(Team team, boolean isHomeBase) {
+  // 1. Calculate how many nodes wide/high the base is
+  int baseCols = ceil(team.homebase_width / (float)grid_size);
+  int baseRows = ceil(team.homebase_height / (float)grid_size);
+  
+  Node[][] baseNodes = new Node[baseCols][baseRows];
+
+  // 2. Find the starting index in the GLOBAL grid
+  int startIdxX = floor(team.homebase_x / (float)grid_size);
+  int startIdxY = floor(team.homebase_y / (float)grid_size);
+
+  // 3. Only loop through the required area
+  for (int i = 0; i < baseCols; i++) {
+    for (int j = 0; j < baseRows; j++) {
+      int globalX = startIdxX + i;
+      int globalY = startIdxY + j;
+
+      // Ensure we don't go out of the global grid bounds
+      if (globalX >= 0 && globalX < cols && globalY >= 0 && globalY < rows) {
+        Node n = grid.nodes[globalX][globalY];
+        baseNodes[i][j] = n;
+        
+        n.type = isHomeBase ? NodeType.HOME_BASE : NodeType.ENEMY_BASE;
+      }
+    }
+  }
+  team.setBaseNodes(baseNodes);
+}
 void draw()
 {
   background(200);
@@ -127,11 +164,9 @@ void displayHomeBase() {
 
 // Följande bör ligga i klassen Tree
 void displayTrees() {
-  imageMode(CENTER);
-  image(tree_img, tree1_pos.x, tree1_pos.y);
-  image(tree_img, tree2_pos.x, tree2_pos.y);
-  image(tree_img, tree3_pos.x, tree3_pos.y);
-  imageMode(CORNER);
+  for (Tree tree : allTrees) {
+    tree.display();
+  }
 }
 
 void displayTanks() {
@@ -158,6 +193,10 @@ void displayDebug()
   if (debug)
   {
     grid.display();
+
+    for (Tree tree : allTrees) {
+      tree.displayCollisionRadius();
+    }
   }
 }
 
@@ -221,34 +260,16 @@ void keyReleased() {
   if (selectedTank == null) return; // Om ingen tank är vald, gör inget.
 
   if (key == '0') {
-    selectedTank.moveTo(grid.nodes[12][8]); // stop state
-  }
 
+    selectedTank.targetNode =  grid.getRandomNode();
+    println( selectedTank.targetNode.row + " " + selectedTank.targetNode.col);
+    selectedTank.state = 0; // Move state
+  }
   if (key == '1') {
     selectedTank.state = 1; // Move state
   }
 
   if (key == '2') {
     selectedTank.state = 2; // reverse state
-  }
-}
-
-// Mousebuttons
-void mousePressed() {
-
-
-  if (selectedTank != null) {
-    selectedTank.state = 0; // stop state
-  }
-  selectedTank = null; // Clear selection first
-
-  for (Tank tank : allTanks) {
-    if (tank.position.x - tank_size/2 < mouseX && mouseX < tank.position.x + tank_size/2 &&
-      tank.position.y - tank_size/2 < mouseY && mouseY < tank.position.y + tank_size/2)
-    {
-      selectedTank = tank;
-      println("Tank selected");
-      break; // Stop looking once we find the top-most object
-    }
   }
 }
