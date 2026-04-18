@@ -115,6 +115,9 @@ void setupTrees()
   allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
   allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
   allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
+  //allTrees[3] = new Tree((int)350, (int)400);
+  //allTrees[4] = new Tree((int)620, (int)240);
+  //allTrees[5] = new Tree((int)420, (int)190);
 }
 
 void markBaseType(Team team, NodeType type) {

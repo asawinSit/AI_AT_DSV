@@ -93,9 +93,16 @@ class Tank extends Sprite {
 
     switch (tankState) {
     case SEARCH:
-      search();
+      if (currentNode.type == NodeType.ENEMY_BASE){
+        println("Enemy base reached");
+        tankState = TankState.REPORT;
+
+      } else {
+        search();
+      }
       break;
     case REPORT:
+      returnToBase();
       break;
     case STOP:
       stopMoving();
@@ -117,6 +124,64 @@ class Tank extends Sprite {
       }
     }
     followPath();
+  }
+
+  void returnToBase() {
+    if (path.isEmpty()) {
+      computePathToFirstOf(NodeType.HOME_BASE);
+    }
+    followPath();
+    if (path.isEmpty() && isMoreThanHalfInsideHomeBase()) {
+      stopMoving();
+      tankState = TankState.STOP;
+    }
+  }
+
+  void computePathToFirstOf(NodeType goalType) {
+    path.clear();
+    if (currentNode == null) return;
+
+    ArrayList<Node> touched = new ArrayList<Node>();
+    ArrayList<Node> queue   = new ArrayList<Node>();
+
+    currentNode.visited = true;
+    currentNode.parent  = null;
+    touched.add(currentNode);
+    queue.add(currentNode);
+
+    boolean found = false;
+    Node    goal  = null;
+
+    while (!queue.isEmpty()) {
+      Node current = queue.remove(0);
+
+      if (current.type == goalType && current != currentNode) {
+        found = true;
+        goal  = current;
+        break;
+      }
+
+      for (Node nb : current.neighbors) {
+        if (nb.visited) continue;
+        if (!nb.isTraversable()) continue;
+        if (nb.exploredState == ExploredState.UNEXPLORED) continue;
+
+        nb.visited = true;
+        nb.parent  = current;
+        touched.add(nb);
+        queue.add(nb);
+      }
+    }
+
+    if (found) {
+      Node step = goal;
+      while (step != null && step != currentNode) {
+        path.add(0, step);
+        step = step.parent;
+      }
+    }
+
+    for (Node n : touched) { n.visited = false; n.parent = null; }
   }
 
   void perceiveNeighbours() {
@@ -305,8 +370,8 @@ class Tank extends Sprite {
     }
 
     if (isAtTarget()) {
-      position.set(targetNode.position);
-      stopMoving();
+      //position.set(targetNode.position);
+      //stopMoving();
       path.remove(0);
       targetNode = path.isEmpty() ? null : path.get(0);
     }
@@ -466,5 +531,24 @@ class Tank extends Sprite {
   int getId() {
     return tank_id;
   }
-}
 
+  boolean isMoreThanHalfInsideHomeBase() {
+    float hbX = team.homebase_x, hbY = team.homebase_y;
+    float hbW = team.homebase_width, hbH = team.homebase_height;
+    float threshold = radius * 0.5;
+    return position.x > hbX + threshold
+        && position.x < hbX + hbW - threshold
+        && position.y > hbY + threshold
+        && position.y < hbY + hbH - threshold;
+  }
+
+  boolean isMoreThanHalfInsideEnemyBase() {
+    float ebX = width - 151, ebY = height - 351;
+    float ebW = 150,          ebH = 350;
+    float threshold = radius * 0.5;
+    return position.x > ebX + threshold
+        && position.x < ebX + ebW - threshold
+        && position.y > ebY + threshold
+        && position.y < ebY + ebH - threshold;
+  }
+}
