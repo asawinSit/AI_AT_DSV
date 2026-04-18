@@ -58,7 +58,7 @@ class Tank extends Sprite {
     for (Node n : homeBase) {
       String key = getPositionKey(n.col, n.row);
       if (!knownMap.containsKey(key)) {
-        n.exploredState = ExploredState.VISITED;
+        n.exploredState = ExploredState.VISIBLE;
         n.distanceFromBase = 0;
         knownMap.put(key, n);
       }
@@ -68,12 +68,9 @@ class Tank extends Sprite {
 
     currentNode = nearestKnownNode(position);
     lastNode = currentNode;
-    Node savedCurrent = currentNode;
-    for (Node n : homeBase) {
-      currentNode = n;
-      perceiveNeighbours();
-    }
-    currentNode = savedCurrent;
+
+    currentNode.exploredState = ExploredState.VISITED;
+    perceiveNeighbours();
   }
 
   void update() {
@@ -93,10 +90,9 @@ class Tank extends Sprite {
 
     switch (tankState) {
     case SEARCH:
-      if (currentNode.type == NodeType.ENEMY_BASE){
+      if (currentNode.type == NodeType.ENEMY_BASE) {
         println("Enemy base reached");
         tankState = TankState.REPORT;
-
       } else {
         search();
       }
@@ -181,7 +177,10 @@ class Tank extends Sprite {
       }
     }
 
-    for (Node n : touched) { n.visited = false; n.parent = null; }
+    for (Node n : touched) {
+      n.visited = false;
+      n.parent = null;
+    }
   }
 
   void perceiveNeighbours() {
@@ -258,8 +257,8 @@ class Tank extends Sprite {
     ArrayList<Node> candidates = new ArrayList<Node>();
 
     for (Node n : knownMap.values()) {
-      if (n.type == NodeType.HOME_BASE && !n.visited) {
-        n.visited = true;
+      if (!n.visited) {
+
         touched.add(n);
         queue.add(n);
       }
@@ -275,6 +274,7 @@ class Tank extends Sprite {
 
         if (!nb.isTraversable()) continue;
         if (nb.exploredState == ExploredState.UNEXPLORED) continue;
+
         if (nb.exploredState == ExploredState.VISIBLE) {
           candidates.add(nb);
         }
@@ -288,7 +288,14 @@ class Tank extends Sprite {
     Node bestNode = null;
     int bestScore = Integer.MAX_VALUE;
     for (Node n : candidates) {
-      int score = n.distanceFromBase * 150;
+      int score = 0;
+      if (n.type != NodeType.HOME_BASE)
+      {
+        score  = n.distanceFromBase * 150;
+      } else
+      {
+        score += 20000;
+      }
       score += dist(position.x, position.y, n.position.x, n.position.y);
       if (n.exploredState == ExploredState.VISITED) score += 10000;
       if (score < bestScore) {
@@ -296,6 +303,7 @@ class Tank extends Sprite {
         bestNode = n;
       }
     }
+
     return bestNode;
   }
 
@@ -537,18 +545,18 @@ class Tank extends Sprite {
     float hbW = team.homebase_width, hbH = team.homebase_height;
     float threshold = radius * 0.5;
     return position.x > hbX + threshold
-        && position.x < hbX + hbW - threshold
-        && position.y > hbY + threshold
-        && position.y < hbY + hbH - threshold;
+      && position.x < hbX + hbW - threshold
+      && position.y > hbY + threshold
+      && position.y < hbY + hbH - threshold;
   }
 
   boolean isMoreThanHalfInsideEnemyBase() {
     float ebX = width - 151, ebY = height - 351;
-    float ebW = 150,          ebH = 350;
+    float ebW = 150, ebH = 350;
     float threshold = radius * 0.5;
     return position.x > ebX + threshold
-        && position.x < ebX + ebW - threshold
-        && position.y > ebY + threshold
-        && position.y < ebY + ebH - threshold;
+      && position.x < ebX + ebW - threshold
+      && position.y > ebY + threshold
+      && position.y < ebY + ebH - threshold;
   }
 }
