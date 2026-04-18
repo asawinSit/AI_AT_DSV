@@ -6,24 +6,27 @@
 boolean left, right, up, down;
 boolean mouse_pressed;
 
-PImage tree_img;
-PVector tree1_pos, tree2_pos, tree3_pos;
+int width = 800;
+int height = 800;
 
+public final PVector tree1_pos = new PVector(230, 600);
+public final PVector tree2_pos = new PVector(280, 230);
+public final PVector tree3_pos = new PVector(530, 520);
 Tree[] allTrees   = new Tree[3];
 
 // Team0
-color team0Color;
-PVector team0_tank0_startpos;
-PVector team0_tank1_startpos;
-PVector team0_tank2_startpos;
+public final color team0Color = color(204, 50, 50);
+public final PVector team0_tank0_startpos = new PVector(50, 50);
+public final PVector team0_tank1_startpos = new PVector(50, 150);
+public final PVector team0_tank2_startpos  = new PVector(50, 250);
 
 // Team1
-color team1Color;
-PVector team1_tank0_startpos;
-PVector team1_tank1_startpos;
-PVector team1_tank2_startpos;
+public final color team1Color = color(0, 150, 200);
+public final PVector team1_tank0_startpos = new PVector(width-50, height-250);
+public final PVector team1_tank1_startpos = new PVector(width-50, height-150);
+public final PVector team1_tank2_startpos = new PVector(width-50, height-50);
 
-int tank_size;
+public final int tank_size  = 50;
 
 boolean gameOver;
 boolean pause;
@@ -43,10 +46,13 @@ Tank selectedTank;
 
 Tank[] allTanks = new Tank[6];
 
-//======================================
+public void settings() {
+  size(width, height);
+}
+
 void setup()
 {
-  size(800, 800);
+
   up             = false;
   down           = false;
   mouse_pressed  = false;
@@ -55,52 +61,12 @@ void setup()
   pause          = true;
   debug = false;
 
-  // Trad
-
-  tree1_pos = new PVector(230, 600);
-  tree2_pos = new PVector(280, 230);
-  tree3_pos = new PVector(530, 520);
-
-  allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
-  allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
-  allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
-
-  tank_size = 50;
-
-  // Team0
-
-
-  team0Color  = color(204, 50, 50);             // Base Team 0(red)
-  team0_tank0_startpos  = new PVector(50, 50);
-  team0_tank1_startpos  = new PVector(50, 150);
-  team0_tank2_startpos  = new PVector(50, 250);
-
-  team0 = new Team(0, tank_size, team0Color, team0_tank0_startpos, 1, team0_tank1_startpos, 2, team0_tank2_startpos, 3);
-
-
-  team1Color  = color(0, 150, 200);
-  team1_tank0_startpos  = new PVector(width-50, height-250);
-  team1_tank1_startpos  = new PVector(width-50, height-150);
-  team1_tank2_startpos  = new PVector(width-50, height-50);
-
-  // Team1
-  team1 = new Team(1, tank_size, team1Color, team1_tank0_startpos, 4, team1_tank1_startpos, 5, team1_tank2_startpos, 6);
-  // Base Team 1(blue)
-  //tank0_startpos = new PVector(50, 50);
-
-  allTanks[0] = team0.tanks[0];
-  allTanks[1] = team0.tanks[1];
-  allTanks[2] = team0.tanks[2];
-  allTanks[3] = team1.tanks[0];
-  allTanks[4] = team1.tanks[1];
-  allTanks[5] = team1.tanks[2];
-
-  selectedTank = allTanks[0]; // Start with the first tank selected
-  selectedTank.state = 0; // Set initial state to "move"
-
   grid = new Grid(cols, rows, grid_size);
-  setBaseNodesForTeam(team0, true);
-  setBaseNodesForTeam(team1, false);
+
+  setupTrees();
+  setupTeams();
+  setupTanks();
+
   collisionManager = new CollisionManager();
 
   for (Tree t : allTrees)
@@ -112,6 +78,38 @@ void setup()
   {
     collisionManager.objects.add(t);
   }
+
+  selectedTank = allTanks[0]; // Start with the first tank selected
+  selectedTank.state = 0; // Set initial state to "move"
+}
+
+void setupTanks()
+{
+  allTanks[0] = team0.tanks[0];
+  allTanks[1] = team0.tanks[1];
+  allTanks[2] = team0.tanks[2];
+  allTanks[3] = team1.tanks[0];
+  allTanks[4] = team1.tanks[1];
+  allTanks[5] = team1.tanks[2];
+}
+
+void setupTeams()
+{
+  // Team0
+  team0 = new Team(0, tank_size, team0Color, team0_tank0_startpos, 1, team0_tank1_startpos, 2, team0_tank2_startpos, 3);
+
+  // Team1
+  team1 = new Team(1, tank_size, team1Color, team1_tank0_startpos, 4, team1_tank1_startpos, 5, team1_tank2_startpos, 6);
+
+  setBaseNodesForTeam(team0, true);
+  setBaseNodesForTeam(team1, false);
+}
+
+void setupTrees()
+{
+  allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
+  allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
+  allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
 }
 
 void setBaseNodesForTeam(Team team, boolean isHomeBase) {
@@ -152,8 +150,6 @@ void draw()
     // UPDATE LOGIC
     updateTanksLogic();
 
-    // CHECK FOR COLLISIONS
-    //checkForCollisions();
     collisionManager.checkForCollisions();
   }
 

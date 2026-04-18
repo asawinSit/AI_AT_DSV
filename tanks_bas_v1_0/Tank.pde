@@ -261,13 +261,14 @@ class Tank extends Sprite {
     rotate(this.heading);
     drawTank(0, 0);
     imageMode(CORNER);
-
     strokeWeight(1);
-    fill(230);
-    rect(0+25, 0-25, 100, 40);
-    fill(30);
-    textSize(15);
-    text(this.name +"\n( " + this.position.x + ", " + this.position.y + " )", 25+5, -5-5);
+    // display tank position
+
+    //fill(230);
+    //rect(0+25, 0-25, 100, 40);
+    //fill(30);
+    // textSize(15);
+    // text(this.name +"\n( " + this.position.x + ", " + this.position.y + " )", 25+5, -5-5);
 
     popMatrix();
   }
