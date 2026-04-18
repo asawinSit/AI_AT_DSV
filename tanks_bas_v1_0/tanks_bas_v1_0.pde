@@ -80,7 +80,7 @@ void setup()
   }
 
   selectedTank = allTanks[0]; // Start with the first tank selected
-  selectedTank.state = 0; // Set initial state to "move"
+  selectedTank.tankState = TankState.STOP; // Set initial state to "move"
 }
 
 void setupTanks()
@@ -271,14 +271,6 @@ void keyReleased() {
 
     selectedTank.targetNode =  grid.getRandomNode();
     println( selectedTank.targetNode.row + " " + selectedTank.targetNode.col);
-    selectedTank.state = 0; // Move state
-  }
-  if (key == '1') {
-
-    selectedTank.state = 0; // Move state
-  }
-
-  if (key == '2') {
-    selectedTank.state = 2; // reverse state
+    selectedTank.tankState = TankState.SEARCH;
   }
 }

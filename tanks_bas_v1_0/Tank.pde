@@ -1,43 +1,34 @@
+enum TankState{
+  SEARCH, REPORT, STOP
+}
+
 class Tank extends Sprite {
 
+  // Physics
+  PVector startpos;
   PVector acceleration;
   PVector velocity;
-
-  PVector startpos;
-  int tank_id;
-  Team team;
-
-  color col;
-  float diameter;
-
-  float speed;
-  float maxspeed;
-
-  float turnStep;
-
-  float rotation;
-  float rotationSpeed;
-  float maxRotationSpeed;
-
+  float maxspeed = 3.0;
+  float turnStep = 0.05;
   float heading;
   float targetHeading;
 
-  float maxforce;
+  // Identity
+  int tank_id;
+  Team team;
+  color col;
 
-  int state;
-  boolean isInTransition;
+  // State
+  TankState tankState;
 
-  boolean isFound;
-
+  // Navigation
   Node startNode;
   Node currentNode;
   Node targetNode;
-
-  Node[][] nodes;
-
+  ArrayList<Node> knownNodes = new ArrayList<Node>();
+  ArrayList<Node> path = new ArrayList<Node>();
   PVector prevPosition;
 
-  //======================================
   Tank(int id, Team team, PVector _startpos, float _size, color _col ) {
     println("*** Tank.Tank()");
     this.tank_id      = id;
@@ -46,25 +37,17 @@ class Tank extends Sprite {
     this.col          = _col;
     this.team          = team;
 
-    this.startpos     = new PVector(_startpos.x, _startpos.y);
-    this.position     = new PVector(this.startpos.x, this.startpos.y);
-    this.prevPosition = new PVector(this.position.x, this.position.y);
+    this.startpos     = _startpos.copy();
+    this.position     = _startpos.copy();
+    this.prevPosition = _startpos.copy();
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
-    // At the end of Tank constructor:
+    
+    this.tankState = TankState.STOP;
 
-
-    this.state        = 0; //0(still), 1(moving)
-    this.speed        = velocity.mag();
-    this.maxspeed     = 3;
-    this.turnStep     = 0.05; // radians per update
-    this.isInTransition = false;
-
-    if (this.team.getId() == 0) this.heading = radians(0); // "0" radians.
-    if (this.team.getId() == 1) this.heading = radians(180); // "3.14" radians.
+    if (this.team.getId() == 0) this.heading = radians(0);
+    if (this.team.getId() == 1) this.heading = radians(180);
   }
-
-
 
   void checkBoundaryCollision() {
     if (position.x > width-radius) {
@@ -85,8 +68,8 @@ class Tank extends Sprite {
   void onCollisionDetected(Sprite hitObject)
   {
     println("collide");
-    this.position.set(this.prevPosition);
-    this.state = 4;
+    position.set(this.prevPosition);
+    tankState = TankState.STOP;
   }
 
   void moveForward() {
@@ -161,14 +144,14 @@ class Tank extends Sprite {
   }
 
   //======================================
-  void action(String _action) {
-    // println("*** Tank.action()");
+  //Här är det tänkt att agenten har möjlighet till egna val.
 
-    switch (_action) {
-    case "search":
+  void update() {
+    // println("*** Tank.update()");
+    if (this.tank_id != 1) return; // Endast tank0 i team0 uppdateras i detta exempel.
 
-      moveTo(targetNode);
-
+    switch (tankState) {
+    case SEARCH:
       turnToTarget();
       if (isLookingAtTarget()) {
         if (targetNode != null) moveForward();
@@ -177,51 +160,20 @@ class Tank extends Sprite {
       }
       if (isAtGoalNode(targetNode)) {
         println("Reached target node at row " + targetNode.row + ", col " + targetNode.col);
-        state = 4;
+        tankState = TankState.STOP;
       }
       break;
-    case "report":
-      //moveBackward();
-      break;
-    case "turning":
-      break;
-    case "stop":
-      stopMoving();
-      break;
-    }
-  }
-
-  //======================================
-  //Här är det tänkt att agenten har möjlighet till egna val.
-
-  void update() {
-    // println("*** Tank.update()");
-    if (this.tank_id != 1) return; // Endast tank0 i team0 uppdateras i detta exempel.
-
-    switch (state) {
-    case 0:
-      // still/idle
-      action("search");
-      break;
-    case 2:
-      action("goBack");
-      break;
-    case 3:
-      action("report");
-      break;
-    case 4:
-      action("stop");
-
+    case REPORT: break;
+    case STOP:
+      if (velocity.x > 0 || velocity.y > 0){
+        stopMoving();
+      }
       break;
     }
 
-    //this.position.add(velocity);
-    speed = velocity.mag();
     updatePosition();
     checkBoundaryCollision();
   }
-
-
 
   void updatePosition() {
 
@@ -273,16 +225,9 @@ class Tank extends Sprite {
     popMatrix();
   }
 
-
-
-
-
-  void moveTo(Node node) {
-    //println("*** Tank["+ this.getId() + "].moveTo(PVector)");
-
-    this.targetNode = node;
+  void setTargetNode(Node node) {
+    targetNode = node;
   }
-
 
   void bfsSearch(Node startNode) {
     if (startNode == null) {           // ← guard: currentNode wasn't set yet
@@ -348,6 +293,8 @@ class Tank extends Sprite {
 
 
   void goBackToBase() {
-    moveTo(grid.getNearestNode(startpos));
+    setTargetNode(grid.getNearestNode(startpos));
   }
+
+  
 }
