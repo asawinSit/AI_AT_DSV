@@ -18,16 +18,11 @@ class Node {
   ArrayList<Node> neighbors = new ArrayList<Node>();
 
   int distanceFromBase = Integer.MAX_VALUE;
+  int cost;
 
   // Used in BFS
   Node parent;
   boolean visited;
-  
-  Node(float _posx, float _posy) {
-    this.position = new PVector(_posx, _posy);
-    this.type = NodeType.EMPTY;
-    this.exploredState = ExploredState.UNEXPLORED;
-  }
   
   Node(int _id_col, int _id_row, float _posx, float _posy) {
     this.position = new PVector(_posx, _posy);
@@ -61,7 +56,7 @@ class Node {
             case VISIBLE: return color(200, 220, 180, 160);
             default: return color(80,  80,  80,  120);
           }
-        case OBSTACLE: return color(100);
+        case OBSTACLE: return color(255, 0, 0);
         case HOME_BASE: return color(255, 150, 150);
         case ENEMY_BASE: return color(150, 150, 255);
         default: return color(0);

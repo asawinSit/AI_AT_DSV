@@ -53,6 +53,7 @@ public void settings() {
 void setup()
 {
 
+  frameRate(60);
   up             = false;
   down           = false;
   mouse_pressed  = false;
@@ -72,6 +73,7 @@ void setup()
   for (Tree t : allTrees)
   {
     collisionManager.objects.add(t);
+    grid.markObstacle(t.position, t.radius, tank_size / 2.0 + 10);
   }
 
   for (Tank t : allTanks)
@@ -79,8 +81,8 @@ void setup()
     collisionManager.objects.add(t);
   }
 
-  selectedTank = allTanks[0]; // Start with the first tank selected
-  selectedTank.tankState = TankState.STOP; // Set initial state to "move"
+  selectedTank = allTanks[0];
+  allTanks[0].tankState = TankState.SEARCH;
 }
 
 void setupTanks()
@@ -91,18 +93,21 @@ void setupTanks()
   allTanks[3] = team1.tanks[0];
   allTanks[4] = team1.tanks[1];
   allTanks[5] = team1.tanks[2];
+
+  allTanks[0].worldSensor = grid;
+  allTanks[0].cellSize = grid.grid_size;
+
+  ArrayList<Node> homeNodes = buildBaseNodes(team0, NodeType.HOME_BASE);
+  allTanks[0].addHomeBase(homeNodes);
 }
 
 void setupTeams()
 {
-  // Team0
-  team0 = new Team(0, tank_size, team0Color, team0_tank0_startpos, 1, team0_tank1_startpos, 2, team0_tank2_startpos, 3);
+  team0 = new Team(0, tank_size, team0Color, team0_tank0_startpos, 1, team0_tank1_startpos, 2, team0_tank2_startpos, 3, grid);
+  team1 = new Team(1, tank_size, team1Color, team1_tank0_startpos, 4, team1_tank1_startpos, 5, team1_tank2_startpos, 6, grid);
 
-  // Team1
-  team1 = new Team(1, tank_size, team1Color, team1_tank0_startpos, 4, team1_tank1_startpos, 5, team1_tank2_startpos, 6);
-
-  setBaseNodesForTeam(team0, true);
-  setBaseNodesForTeam(team1, false);
+  markBaseType(team0, NodeType.HOME_BASE);
+  markBaseType(team1, NodeType.ENEMY_BASE);
 }
 
 void setupTrees()
@@ -112,34 +117,39 @@ void setupTrees()
   allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
 }
 
-void setBaseNodesForTeam(Team team, boolean isHomeBase) {
-  // 1. Calculate how many nodes wide/high the base is
-  int baseCols = ceil(team.homebase_width / (float)grid_size);
-  int baseRows = ceil(team.homebase_height / (float)grid_size);
+void markBaseType(Team team, NodeType type) {
+  int startC = floor(team.homebase_x / (float)grid_size);
+  int startR = floor(team.homebase_y / (float)grid_size);
+  int endC   = ceil((team.homebase_x + team.homebase_width)  / (float)grid_size);
+  int endR   = ceil((team.homebase_y + team.homebase_height) / (float)grid_size);
 
-  Node[][] baseNodes = new Node[baseCols][baseRows];
+  for (int c = startC; c < endC; c++)
+    for (int r = startR; r < endR; r++)
+      grid.markBaseType(c, r, type);
+}
 
-  // 2. Find the starting index in the GLOBAL grid
-  int startIdxX = floor(team.homebase_x / (float)grid_size);
-  int startIdxY = floor(team.homebase_y / (float)grid_size);
+ArrayList<Node> buildBaseNodes(Team team, NodeType type) {
+  ArrayList<Node> result = new ArrayList<Node>();
 
-  // 3. Only loop through the required area
-  for (int i = 0; i < baseCols; i++) {
-    for (int j = 0; j < baseRows; j++) {
-      int globalX = startIdxX + i;
-      int globalY = startIdxY + j;
+  int startC = floor(team.homebase_x / (float)grid_size);
+  int startR = floor(team.homebase_y / (float)grid_size);
+  int endC   = ceil((team.homebase_x + team.homebase_width)  / (float)grid_size);
+  int endR   = ceil((team.homebase_y + team.homebase_height) / (float)grid_size);
 
-      // Ensure we don't go out of the global grid bounds
-      if (globalX >= 0 && globalX < cols && globalY >= 0 && globalY < rows) {
-        Node n = grid.nodes[globalX][globalY];
-        baseNodes[i][j] = n;
-
-        n.type = isHomeBase ? NodeType.HOME_BASE : NodeType.ENEMY_BASE;
+  for (int c = startC; c < endC; c++) {
+    for (int r = startR; r < endR; r++) {
+      if (c >= 0 && c < grid.cols && r >= 0 && r < grid.rows) {
+        float px = c * grid_size + grid_size;
+        float py = r * grid_size + grid_size;
+        Node n   = new Node(c, r, px, py);
+        n.type   = type;
+        result.add(n);
       }
     }
   }
-  team.setBaseNodes(baseNodes);
+  return result;
 }
+
 void draw()
 {
   background(200);
@@ -200,7 +210,12 @@ void displayDebug()
 {
   if (debug)
   {
-    grid.display();
+    // grid.display();
+
+    for (Node n : allTanks[0].knownMap.values()){
+      fill(n.getColor());
+      ellipse(n.position.x, n.position.y, n.w, n.h);
+    }
 
     for (Tree tree : allTrees) {
       tree.displayCollisionRadius();

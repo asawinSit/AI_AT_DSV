@@ -101,4 +101,34 @@ class Grid {
       }
     }
   }
+
+  NodeType senseTypeAt(int c, int r) {
+    if (c < 0 || c >= cols || r < 0 || r >= rows) return NodeType.OBSTACLE;
+    return nodes[c][r].type;
+  }
+
+  void markObstacle(PVector centre, float obstacleRadius, float tankRadius) {
+    float effective = obstacleRadius + tankRadius;
+    for (int c = 0; c < cols; c++)
+      for (int r = 0; r < rows; r++) {
+        Node n = nodes[c][r];
+        if (dist(n.position.x, n.position.y, centre.x, centre.y) < effective)
+          n.type = NodeType.OBSTACLE;
+      }
+    rebuildNeighbors();
+  }
+
+  void markBaseType(int c, int r, NodeType type) {
+    if (c >= 0 && c < cols && r >= 0 && r < rows)
+      nodes[c][r].type = type;
+  }
+
+  void rebuildNeighbors() {
+    for (int c = 0; c < cols; c++)
+      for (int r = 0; r < rows; r++)
+        nodes[c][r].neighbors.clear();
+    for (int c = 0; c < cols; c++)
+      for (int r = 0; r < rows; r++)
+        addNeighbors(nodes[c][r]);
+  }
 }

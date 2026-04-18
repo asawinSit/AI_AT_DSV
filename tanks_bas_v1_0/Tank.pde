@@ -1,4 +1,4 @@
-enum TankState{
+enum TankState {
   SEARCH, REPORT, STOP
 }
 
@@ -11,7 +11,6 @@ class Tank extends Sprite {
   float maxspeed = 3.0;
   float turnStep = 0.05;
   float heading;
-  float targetHeading;
 
   // Identity
   int tank_id;
@@ -21,32 +20,296 @@ class Tank extends Sprite {
   // State
   TankState tankState;
 
-  // Navigation
-  Node startNode;
-  Node currentNode;
-  Node targetNode;
-  ArrayList<Node> knownNodes = new ArrayList<Node>();
-  ArrayList<Node> path = new ArrayList<Node>();
-  PVector prevPosition;
+  // sensor - Mabye change later
+  // Only calls it for percieving what type is at a specific col or row
+  Grid worldSensor;
+  int cellSize; // Should the tank know this? Argument, tank team decision for accurate search.
 
-  Tank(int id, Team team, PVector _startpos, float _size, color _col ) {
-    println("*** Tank.Tank()");
+  // own knowledge graph
+  HashMap<String, Node> knownMap = new HashMap<String, Node>();
+
+  // Navigation
+  Node currentNode;
+  Node lastNode;
+  Node targetNode;
+  ArrayList<Node> path = new ArrayList<Node>();
+  PVector prevPosition; // Change to use lastNode.posiiton
+
+  Tank(int id, Team team, PVector _startpos, float _size, color _col, Grid worldSensor, int cellSize) {
     this.tank_id      = id;
     this.diameter     = _size;
-    this.radius = diameter/2;
+    this.radius       = diameter/2;
     this.col          = _col;
-    this.team          = team;
-
+    this.team         = team;
+    this.worldSensor  = worldSensor;
     this.startpos     = _startpos.copy();
     this.position     = _startpos.copy();
     this.prevPosition = _startpos.copy();
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
-    
     this.tankState = TankState.STOP;
+    this.cellSize = cellSize;
 
     if (this.team.getId() == 0) this.heading = radians(0);
     if (this.team.getId() == 1) this.heading = radians(180);
+  }
+
+  void addHomeBase(ArrayList<Node> homeBase) {
+    for (Node n : homeBase) {
+      String key = getPositionKey(n.col, n.row);
+      if (!knownMap.containsKey(key)) {
+        n.exploredState = ExploredState.VISITED;
+        n.distanceFromBase = 0;
+        knownMap.put(key, n);
+      }
+    }
+
+    for (Node n : homeBase) wireNeighbours(n);
+
+    currentNode = nearestKnownNode(position);
+    lastNode = currentNode;
+    Node savedCurrent = currentNode;
+    for (Node n : homeBase) {
+      currentNode = n;
+      perceiveNeighbours();
+    }
+    currentNode = savedCurrent;
+  }
+
+  void update() {
+    if (this.tank_id != 1) return; // Endast tank0 i team0 uppdateras
+
+    int col = worldToCol(position.x);
+    int row = worldToRow(position.y);
+    String key = getPositionKey(col, row);
+    Node node = knownMap.containsKey(key) ? knownMap.get(key) : null;
+
+    if (node != null && node != lastNode) {
+      lastNode = currentNode;
+      currentNode = node;
+      currentNode.exploredState = ExploredState.VISITED;
+      perceiveNeighbours();
+    }
+
+    switch (tankState) {
+    case SEARCH:
+      search();
+      break;
+    case REPORT:
+      break;
+    case STOP:
+      stopMoving();
+      break;
+    }
+
+    updatePosition();
+    checkBoundaryCollision();
+  }
+
+  void search() {
+    if (path.isEmpty()) {
+      Node frontier = selectFrontierNode();
+      if (frontier != null) {
+        computePath(frontier);
+      } else {
+        println("No frontier found!");
+        tankState = TankState.STOP;
+      }
+    }
+    followPath();
+  }
+
+  void perceiveNeighbours() {
+    if (currentNode == null) return;
+
+    int[] colDirections = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int[] rowDirections = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+    for (int i = 0; i < 8; i++) {
+      int nodeCol = currentNode.col + colDirections[i];
+      int nodeRow = currentNode.row + rowDirections[i];
+      String key = getPositionKey(nodeCol, nodeRow);
+
+      if (!knownMap.containsKey(key)) {
+        NodeType sensedType = worldSensor.senseTypeAt(nodeCol, nodeRow);
+
+        float positionX = nodeCol * cellSize + cellSize;
+        float posiitonY = nodeRow * cellSize + cellSize;
+        Node newNode = new Node(nodeCol, nodeRow, positionX, posiitonY);
+        newNode.type = sensedType;
+        newNode.exploredState = ExploredState.VISIBLE;
+
+        knownMap.put(key, newNode);
+        wireNeighbours(newNode);
+        computeDistanceFromBase(newNode);
+      }
+    }
+  }
+
+  void wireNeighbours(Node n) {
+    int[] colDirections = {-1, -1, -1, 0, 0, 1, 1, 1};
+    int[] rowDirections = {-1, 0, 1, -1, 1, -1, 0, 1};
+
+    for (int i = 0; i < 8; i++) {
+      String key = getPositionKey(n.col + colDirections[i], n.row + rowDirections[i]);
+      if (knownMap.containsKey(key)) {
+        Node nb = knownMap.get(key);
+        if (!n.neighbors.contains(nb)) n.neighbors.add(nb);
+        if (!nb.neighbors.contains((n))) nb.neighbors.add(n);
+      }
+    }
+  }
+
+  // BFS backwards from base nodes
+  void computeDistanceFromBase(Node target) {
+    ArrayList<Node> queue = new ArrayList<Node>();
+    HashMap<Node, Integer> dist = new HashMap<Node, Integer>();
+
+    for (Node n : knownMap.values()) {
+      if (n.type == NodeType.HOME_BASE) { // Should be the base of the team so that enemies can use the same functionality
+        dist.put(n, 0);
+        queue.add(n);
+      }
+    }
+
+    while (!queue.isEmpty()) {
+      Node current = queue.remove(0);
+      if (current == target) {
+        target.distanceFromBase = dist.get(current);
+        return;
+      }
+      for (Node nb : current.neighbors) {
+        if (!dist.containsKey(nb) && nb.isTraversable()) {
+          dist.put(nb, dist.get(current) + 1);
+          queue.add(nb);
+        }
+      }
+    }
+  }
+
+  Node selectFrontierNode() {
+    ArrayList<Node> touched = new ArrayList<Node>();
+    ArrayList<Node> queue = new ArrayList<Node>();
+    ArrayList<Node> candidates = new ArrayList<Node>();
+
+    for (Node n : knownMap.values()) {
+      if (n.type == NodeType.HOME_BASE && !n.visited) {
+        n.visited = true;
+        touched.add(n);
+        queue.add(n);
+      }
+    }
+
+    while (!queue.isEmpty()) {
+      Node current = queue.remove(0);
+
+      for (Node nb : current.neighbors) {
+        if (nb.visited) continue;
+        nb.visited = true;
+        touched.add(nb);
+
+        if (!nb.isTraversable()) continue;
+        if (nb.exploredState == ExploredState.UNEXPLORED) continue;
+        if (nb.exploredState == ExploredState.VISIBLE) {
+          candidates.add(nb);
+        }
+        queue.add(nb);
+      }
+    }
+
+    for (Node n : touched) n.visited = false;
+    if (candidates.isEmpty()) return null;
+
+    Node bestNode = null;
+    int bestScore = Integer.MAX_VALUE;
+    for (Node n : candidates) {
+      int score = n.distanceFromBase * 150;
+      score += dist(position.x, position.y, n.position.x, n.position.y);
+      if (n.exploredState == ExploredState.VISITED) score += 10000;
+      if (score < bestScore) {
+        bestScore = score;
+        bestNode = n;
+      }
+    }
+    return bestNode;
+  }
+
+  void computePath(Node goalNode) {
+    path.clear();
+    if (currentNode == null || goalNode == null) return;
+
+    ArrayList<Node> touched = new ArrayList<Node>();
+    ArrayList<Node> queue = new ArrayList<Node>();
+
+    currentNode.visited = true;
+    currentNode.parent = null;
+    touched.add(currentNode);
+    queue.add(currentNode);
+
+    boolean found = false;
+
+    while (!queue.isEmpty()) {
+      queue.sort((a, b) -> Integer.compare(a.cost, b.cost));
+      Node current = queue.remove(0);
+      if (current == goalNode) {
+        found = true;
+        break;
+      }
+
+      for (Node nb : current.neighbors) {
+        if (nb.visited) continue;
+        if (!nb.isTraversable()) continue;
+
+        int cost = current.cost + 1;
+
+        if (nb.isVisible())
+          cost -= 100;
+
+        if (nb == lastNode)
+          cost += 5;
+
+        cost += nb.distanceFromBase;
+        cost += dist(position.x, position.y, nb.position.x, nb.position.y);
+        nb.cost = cost;
+        nb.parent = current;
+        nb.visited = true;
+
+        touched.add(nb);
+        queue.add(nb);
+      }
+    }
+
+    if (found) {
+      Node step = goalNode;
+      while (step != null && step != currentNode) {
+        path.add(0, step);
+        step = step.parent;
+      }
+    }
+
+    for (Node n : touched) {
+      n.visited = false;
+    }
+  }
+
+  void followPath() {
+    if (path.isEmpty()) return;
+
+    targetNode = path.get(0);
+    turnToTarget();
+
+    if (isLookingAtTarget()) {
+      moveForward();
+    } else {
+      stopMoving();
+    }
+
+    if (isAtTarget()) {
+      position.set(targetNode.position);
+      stopMoving();
+      path.remove(0);
+      targetNode = path.isEmpty() ? null : path.get(0);
+    }
   }
 
   void checkBoundaryCollision() {
@@ -65,42 +328,24 @@ class Tank extends Sprite {
     }
   }
 
-  void onCollisionDetected(Sprite hitObject)
-  {
-    println("collide");
-    position.set(this.prevPosition);
-    tankState = TankState.STOP;
+  void onCollisionDetected(Sprite hitObject) {
+    println("Collision detected");
+    // Revert to last safe node position
+    if (lastNode != null) {
+      position.set(lastNode.position);
+    } else {
+      position.set(prevPosition);
+    }
+    velocity.mult(0);
+    acceleration.mult(0);
+    path.clear();          // force recompute of path around obstacle
+    tankState = TankState.SEARCH;  // resume searching, not freezing
   }
 
   void moveForward() {
-    //println("*** Tank[" + getId() + "].moveForward()");
-
-    // Offset the angle since we drew the ship vertically
-    float angle = this.heading; // - PI/2;
-    // Polar to cartesian for force vector!
-    PVector force = new PVector(cos(angle), sin(angle));
+    PVector force = new PVector(cos(heading), sin(heading));
     force.mult(0.1);
-    if (this.tank_id == 1)
-    {
-      println(targetNode.row + " " + targetNode.col);
-    }
-
-    applyForce(force);
-  }
-
-  void applyForce(PVector force) {
     this.acceleration.add(force);
-  }
-
-
-  void moveBackward() {
-    // println("*** Tank.moveBackward()");
-
-    if (this.velocity.x > -this.maxspeed) {
-      this.velocity.x -= 0.01;
-    } else {
-      this.velocity.x = -this.maxspeed;
-    }
   }
 
   void turnToTarget() {
@@ -128,51 +373,19 @@ class Tank extends Sprite {
     while (angleDiff < -PI) angleDiff += TWO_PI;
     while (angleDiff > PI)  angleDiff -= TWO_PI;
 
-    // Use half the turnStep as tolerance — tight enough to look accurate,
-    // loose enough that the tank never stutters at the threshold
     float tolerance = turnStep * 0.5;
     return abs(angleDiff) < tolerance;
   }
 
-
-  void stopMoving() {
-    println("*** Tank.stopMoving()");
-
-    // hade varit finare med animering!
-    this.velocity.x = 0;
-    this.velocity.y = 0;
+  boolean isAtTarget() {
+    if (targetNode == null) return false;
+    return position.dist(targetNode.position) < 5; // within 5 pixels
   }
 
-  //======================================
-  //Här är det tänkt att agenten har möjlighet till egna val.
 
-  void update() {
-    // println("*** Tank.update()");
-    if (this.tank_id != 1) return; // Endast tank0 i team0 uppdateras i detta exempel.
-
-    switch (tankState) {
-    case SEARCH:
-      turnToTarget();
-      if (isLookingAtTarget()) {
-        if (targetNode != null) moveForward();
-      } else {
-        stopMoving();
-      }
-      if (isAtGoalNode(targetNode)) {
-        println("Reached target node at row " + targetNode.row + ", col " + targetNode.col);
-        tankState = TankState.STOP;
-      }
-      break;
-    case REPORT: break;
-    case STOP:
-      if (velocity.x > 0 || velocity.y > 0){
-        stopMoving();
-      }
-      break;
-    }
-
-    updatePosition();
-    checkBoundaryCollision();
+  void stopMoving() {
+    velocity.mult(0);
+    acceleration.mult(0);
   }
 
   void updatePosition() {
@@ -225,76 +438,33 @@ class Tank extends Sprite {
     popMatrix();
   }
 
-  void setTargetNode(Node node) {
-    targetNode = node;
+  String getPositionKey(int column, int row) {
+    return column + "," + row;
   }
 
-  void bfsSearch(Node startNode) {
-    if (startNode == null) {           // ← guard: currentNode wasn't set yet
-      currentNode = grid.getNearestNode(position);
-      if (currentNode == null) return; // grid not ready
-      startNode = currentNode;
-    }
+  int worldToCol(float positionX) {
+    return (int)round((positionX - cellSize) / cellSize);
+  }
 
-    grid.resetVisited();
-    ArrayList<Node> queue = new ArrayList<Node>();
-    startNode.visited = true;
-    startNode.parent  = null;
-    queue.add(startNode);
+  int worldToRow(float positionY) {
+    return (int)round((positionY - cellSize) / cellSize);
+  }
 
-    while (queue.size() > 0) {
-      Node current = queue.remove(0);
-      if (isAtGoalNode(current))
-      {
-        //targetNode = current;
-        return;
-      }
-
-      for (Node neighbor : current.neighbors) {
-        if (!neighbor.visited) {
-          neighbor.visited = true;
-          neighbor.parent  = current;
-          queue.add(neighbor);
-        }
+  Node nearestKnownNode(PVector pos) {
+    Node bestNode = null;
+    float bestDist = Float.MAX_VALUE;
+    for (Node n : knownMap.values()) {
+      float d = dist(pos.x, pos.y, n.position.x, n.position.y);
+      if (d < bestDist) {
+        bestDist = d;
+        bestNode = n;
       }
     }
+    return bestNode;
   }
 
-  void followPath(Node goalNode) {
-    if (goalNode == null || !goalNode.visited) return;
-
-    // Walk back from goal to find the first step after currentNode
-    Node step = goalNode;
-    while (step.parent != null && step.parent != currentNode) {
-      step = step.parent;
-    }
-
-    targetNode = step;   // turnToTarget() + moveForward() will do the rest
-    turnToTarget();
-    if (targetNode != null) moveForward();
-
-    // Advance currentNode when we arrive
-    if (isAtTarget()) {
-      currentNode = targetNode;
-      targetNode  = null;
-      stopMoving();
-    }
+  int getId() {
+    return tank_id;
   }
-
-  boolean isAtGoalNode(Node targetNode) {
-    if (targetNode == null) return false;
-    return position.dist(targetNode.position) < 5; // within 5 pixels
-  }
-
-  boolean isAtTarget() {
-    if (targetNode == null) return false;
-    return position.dist(targetNode.position) < 5; // within 5 pixels
-  }
-
-
-  void goBackToBase() {
-    setTargetNode(grid.getNearestNode(startpos));
-  }
-
-  
 }
+
