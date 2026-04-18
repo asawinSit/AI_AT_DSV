@@ -11,23 +11,6 @@ class Tree extends Sprite {
     this.name = "tree";
   }
 
-  //**************************************************
-  void checkCollision(Tank other) {
-
-
-    // Get distances between the balls components
-    PVector distanceVect = PVector.sub(other.position, position);
-
-    // Calculate magnitude of the vector separating the balls
-    float distanceVectMag = distanceVect.mag();
-
-    // Minimum distance before they are touching
-    float minDistance = radius + other.radius;
-
-    if (distanceVectMag < minDistance) {
-      println("! collision med en tank [Tree]");
-    }
-  }
 
   //**************************************************
   void display() {
@@ -45,7 +28,7 @@ class Tree extends Sprite {
   }
 
   void displayCollisionRadius() {
-    pushStyle(); 
+    pushStyle();
     noFill();
     stroke(255, 0, 0);
     strokeWeight(2);

@@ -1,28 +1,33 @@
-class Sprite {
- 
+class Sprite implements CollisionListener {
+
   PVector position;
   String name;
   float diameter, radius;
   PImage img;
-  
+
   //**************************************************
-  public String getName(){
+  public String getName() {
     return this.name;
   }
-  
+
   //**************************************************
-  public float diameter(){
+  public float diameter() {
     return this.diameter;
-  }  
-  
+  }
+
   //**************************************************
-  public float getRadius(){
+  public float getRadius() {
     return this.radius;
-  }   
-  
+  }
+
   //**************************************************
-  public PVector position(){
+  public PVector position() {
     return this.position;
   }
-  
+
+
+
+  void onCollisionDetected(Sprite hitObject)
+  {
+  }
 }

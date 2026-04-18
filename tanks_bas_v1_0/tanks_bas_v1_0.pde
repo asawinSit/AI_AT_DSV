@@ -37,7 +37,7 @@ int grid_size = 50;
 Team team0;
 Team team1;
 
-
+CollisionManager collisionManager;
 //for debug
 Tank selectedTank;
 
@@ -61,9 +61,9 @@ void setup()
   tree2_pos = new PVector(280, 230);
   tree3_pos = new PVector(530, 520);
 
-    allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
-    allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
-    allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
+  allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
+  allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
+  allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
 
   tank_size = 50;
 
@@ -101,13 +101,24 @@ void setup()
   grid = new Grid(cols, rows, grid_size);
   setBaseNodesForTeam(team0, true);
   setBaseNodesForTeam(team1, false);
+  collisionManager = new CollisionManager();
+
+  for (Tree t : allTrees)
+  {
+    collisionManager.objects.add(t);
+  }
+
+  for (Tank t : allTanks)
+  {
+    collisionManager.objects.add(t);
+  }
 }
 
 void setBaseNodesForTeam(Team team, boolean isHomeBase) {
   // 1. Calculate how many nodes wide/high the base is
   int baseCols = ceil(team.homebase_width / (float)grid_size);
   int baseRows = ceil(team.homebase_height / (float)grid_size);
-  
+
   Node[][] baseNodes = new Node[baseCols][baseRows];
 
   // 2. Find the starting index in the GLOBAL grid
@@ -124,7 +135,7 @@ void setBaseNodesForTeam(Team team, boolean isHomeBase) {
       if (globalX >= 0 && globalX < cols && globalY >= 0 && globalY < rows) {
         Node n = grid.nodes[globalX][globalY];
         baseNodes[i][j] = n;
-        
+
         n.type = isHomeBase ? NodeType.HOME_BASE : NodeType.ENEMY_BASE;
       }
     }
@@ -143,6 +154,7 @@ void draw()
 
     // CHECK FOR COLLISIONS
     //checkForCollisions();
+    collisionManager.checkForCollisions();
   }
 
   // UPDATE DISPLAY
@@ -266,7 +278,8 @@ void keyReleased() {
     selectedTank.state = 0; // Move state
   }
   if (key == '1') {
-    selectedTank.state = 1; // Move state
+
+    selectedTank.state = 0; // Move state
   }
 
   if (key == '2') {

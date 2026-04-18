@@ -1,0 +1,39 @@
+class CollisionManager {
+  ArrayList<Sprite> objects = new ArrayList<Sprite>();
+
+  void checkForCollisions() {
+    // Standard for-loop is safest for nested checks
+    for (int i = 0; i < objects.size(); i++) {
+      Sprite a = objects.get(i);
+
+      for (int j = i + 1; j < objects.size(); j++) {
+        Sprite b = objects.get(j);
+
+        if (isColliding(a, b)) {
+          // If Sprite implements CollisionListener, notify them
+          if (a instanceof CollisionListener) {
+            ((CollisionListener)a).onCollisionDetected(b);
+          }
+          if (b instanceof CollisionListener) {
+            ((CollisionListener)b).onCollisionDetected(a);
+          }
+        }
+      }
+    }
+  }
+
+  boolean isColliding(Sprite self, Sprite other ) {
+    PVector distanceVect = PVector.sub(other.position, self.position);
+    float distSq = distanceVect.magSq(); // (x2-x1)^2 + (y2-y1)^2
+    float minDistance = self.radius + other.radius;
+
+    return distSq < (minDistance * minDistance);
+  }
+}
+
+
+
+
+interface CollisionListener {
+  void onCollisionDetected(Sprite hitObject);
+}

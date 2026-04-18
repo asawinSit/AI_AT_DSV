@@ -35,17 +35,20 @@ class Tank extends Sprite {
 
   Node[][] nodes;
 
+  PVector prevPosition;
 
   //======================================
   Tank(int id, Team team, PVector _startpos, float _size, color _col ) {
     println("*** Tank.Tank()");
     this.tank_id      = id;
     this.diameter     = _size;
+    this.radius = diameter/2;
     this.col          = _col;
     this.team          = team;
 
     this.startpos     = new PVector(_startpos.x, _startpos.y);
     this.position     = new PVector(this.startpos.x, this.startpos.y);
+    this.prevPosition = new PVector(this.position.x, this.position.y);
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
     // At the end of Tank constructor:
@@ -61,34 +64,30 @@ class Tank extends Sprite {
     if (this.team.getId() == 1) this.heading = radians(180); // "3.14" radians.
   }
 
-  //======================================
-  void checkEnvironment() {
-    println("*** Tank.checkEnvironment()");
 
-    borders();
+
+  void checkBoundaryCollision() {
+    if (position.x > width-radius) {
+      position.x = width-radius;
+      velocity.x *= -1;
+    } else if (position.x < radius) {
+      position.x = radius;
+      velocity.x *= -1;
+    } else if (position.y > height-radius) {
+      position.y = height-radius;
+      velocity.y *= -1;
+    } else if (position.y < radius) {
+      position.y = radius;
+      velocity.y *= -1;
+    }
   }
 
-
-boolean isColliding( PVector otherposition, float otherRadius) {
-
-  float d = dist(position.x, position.y, otherposition.x, otherposition.y);
-  return d < (tank_size/2 + otherRadius);
-}
-
-
-  void checkForCollisions(PVector vec) {
-    checkEnvironment();
+  void onCollisionDetected(Sprite hitObject)
+  {
+    println("collide");
+    this.position.set(this.prevPosition);
+    this.state = 4;
   }
-
-  // Följande är bara ett exempel
-  void borders() {
-    float r = diameter/2;
-    if (position.x < -r) position.x = width+r;
-    if (position.y < -r) position.y = height+r;
-    if (position.x > width+r) position.x = -r;
-    if (position.y > height+r) position.y = -r;
-  }
-
 
   void moveForward() {
     //println("*** Tank[" + getId() + "].moveForward()");
@@ -219,13 +218,14 @@ boolean isColliding( PVector otherposition, float otherRadius) {
     //this.position.add(velocity);
     speed = velocity.mag();
     updatePosition();
+    checkBoundaryCollision();
   }
 
 
 
   void updatePosition() {
 
-    // this.positionPrev.set(this.position); // spara senaste pos.
+    this.prevPosition.set(this.position); // spara senaste pos.
 
     this.velocity.add(this.acceleration);
     this.velocity.limit(this.maxspeed);
