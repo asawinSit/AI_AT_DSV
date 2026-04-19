@@ -78,7 +78,7 @@ void setup()
   for (Tree t : allTrees)
   {
     collisionManager.objects.add(t);
-    grid.markObstacle(t.position, t.radius, tank_size / 2.0 + 10);
+    grid.markObstacle(t.position, t.radius, tank_size / 2);
   }
 
   for (Tank t : allTanks)
@@ -221,13 +221,13 @@ void displayDebug()
   {
     // grid.display();
 
-    for (Node n : allTanks[0].knownMap.values()){
+    for (Node n : allTanks[0].knownMap.values()) {
       fill(n.getColor());
       ellipse(n.position.x, n.position.y, n.w, n.h);
     }
 
     allTanks[0].displaySightRay();
-
+    allTanks[0].displayPath();
     //for (Tank tank : allTanks){
     //  tank.displaySightRay();
     //}
@@ -304,16 +304,16 @@ void keyReleased() {
     selectedTank.tankState = TankState.SEARCH;
   }
 
-  if (key == '1'){
-    if (currentFrameRate < ORIGINAL_FRAME_RATE * 3){
+  if (key == '1') {
+    if (currentFrameRate < ORIGINAL_FRAME_RATE * 3) {
       currentFrameRate += 10;
       frameRate(currentFrameRate);
       println("Frame rate: " + currentFrameRate);
     }
   }
 
-  if (key == '2'){
-    if (currentFrameRate > ORIGINAL_FRAME_RATE){
+  if (key == '2') {
+    if (currentFrameRate > ORIGINAL_FRAME_RATE) {
       currentFrameRate -= 10;
       frameRate(currentFrameRate);
       println("Frame rate: " + currentFrameRate);

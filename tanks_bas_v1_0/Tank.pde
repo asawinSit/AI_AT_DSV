@@ -8,9 +8,12 @@ class Tank extends Sprite {
   PVector startpos;
   PVector acceleration;
   PVector velocity;
-  float maxspeed = 3.0;
-  float turnStep = 0.05;
+  float speed = 0;
+  float maxSpeed = 3.0;
+  float turnStep = 0.5;
   float heading;
+
+  float maxForce = 0.05;
 
   // Identity
   int tank_id;
@@ -90,7 +93,7 @@ class Tank extends Sprite {
 
     switch (tankState) {
     case SEARCH:
-      if (enemyInSight()){
+      if (enemyInSight()) {
         println("Enemy detected");
       }
       if (isMoreThanHalfInsideEnemyBase() && enemyInSight()) {
@@ -108,9 +111,8 @@ class Tank extends Sprite {
       stopMoving();
       break;
     }
-
-    updatePosition();
     checkBoundaryCollision();
+    updatePosition();
   }
 
   void search() {
@@ -307,9 +309,9 @@ class Tank extends Sprite {
     int bestScore = Integer.MAX_VALUE;
     for (Node n : candidates) {
       int score = 0;
-      if (n.type != NodeType.HOME_BASE){
+      if (n.type != NodeType.HOME_BASE) {
         score = n.distanceFromBase * 150;
-      } else{
+      } else {
         score += 20000;
       }
       score += dist(position.x, position.y, n.position.x, n.position.y);
@@ -349,12 +351,13 @@ class Tank extends Sprite {
         if (nb.visited) continue;
         if (!nb.isTraversable()) continue;
 
+
         int cost = current.cost + 1;
 
         if (nb.isVisible()) cost -= 100;
         if (nb == lastNode) cost += 5;
         if (nb.type == NodeType.HOME_BASE) cost += 1000;
-        
+
         cost += nb.distanceFromBase;
         cost += dist(position.x, position.y, nb.position.x, nb.position.y);
         nb.cost = cost;
@@ -381,14 +384,15 @@ class Tank extends Sprite {
 
   void followPath() {
     if (path.isEmpty()) return;
-
     targetNode = path.get(0);
-    turnToTarget();
-
+    // println("target node is " + targetNode.row + "" + targetNode.col);
+    //turnToTarget();
+    seek();
     if (isLookingAtTarget()) {
-      moveForward();
+
+      //moveForward();
     } else {
-      stopMoving();
+      //stopMoving();
     }
 
     if (isAtTarget()) {
@@ -416,17 +420,16 @@ class Tank extends Sprite {
   }
 
   void onCollisionDetected(Sprite hitObject) {
-    // println("Collision detected");
-    // Revert to last safe node position
-    if (lastNode != null) {
-      position.set(lastNode.position);
-    } else {
-      position.set(prevPosition);
-    }
-    velocity.mult(0);
-    acceleration.mult(0);
-    path.clear();          // force recompute of path around obstacle
-    tankState = TankState.SEARCH;  // resume searching, not freezing
+
+    PVector normal = PVector.sub(position, hitObject.position);
+    normal.normalize();
+
+    velocity = PVector.sub(velocity, PVector.mult(normal, 2 * velocity.dot(normal)));
+
+    velocity.mult(0.8); // energy loss
+
+    // optional: prevent sticking
+    position.add(velocity.copy().normalize().mult(2));
   }
 
   boolean enemyInSight() {
@@ -434,7 +437,7 @@ class Tank extends Sprite {
       position.x, position.y,
       heading, 75, radius,
       team.getId()
-    );
+      );
   }
 
   void moveForward() {
@@ -449,6 +452,8 @@ class Tank extends Sprite {
     float angleToTarget = atan2(targetNode.position.y - position.y, targetNode.position.x - position.x);
     float angleDiff = angleToTarget - heading;
 
+
+
     while (angleDiff < -PI) angleDiff += TWO_PI;
     while (angleDiff > PI)  angleDiff -= TWO_PI;
 
@@ -458,6 +463,34 @@ class Tank extends Sprite {
       heading = angleToTarget;
     }
   }
+
+
+  void seek() {
+    PVector desired = PVector.sub(targetNode.position, this.position);
+    desired.setMag(this.maxSpeed);
+    PVector steer = PVector.sub(desired, this.velocity);
+    steer.limit(this.maxForce);
+    this.applyForce(steer);
+  }
+
+  void applyForce(PVector force) {
+
+    this.acceleration.add(force);
+  }
+
+
+  void updatePosition() {
+
+    this.prevPosition.set(this.position);
+
+    this.velocity.add(this.acceleration);
+    this.velocity.limit(this.maxSpeed);
+    float turnAmount = acceleration.mag();
+    velocity.mult(1.0 - constrain(turnAmount, 0, 0.7));
+    this.position.add(this.velocity);
+    this.acceleration.mult(0);
+  }
+
 
   boolean isLookingAtTarget() {
     if (targetNode == null) return false;
@@ -474,7 +507,7 @@ class Tank extends Sprite {
 
   boolean isAtTarget() {
     if (targetNode == null) return false;
-    return position.dist(targetNode.position) < 5; // within 5 pixels
+    return position.dist(targetNode.position) < radius; // within 5 pixels
   }
 
 
@@ -483,15 +516,7 @@ class Tank extends Sprite {
     acceleration.mult(0);
   }
 
-  void updatePosition() {
 
-    this.prevPosition.set(this.position); // spara senaste pos.
-
-    this.velocity.add(this.acceleration);
-    this.velocity.limit(this.maxspeed);
-    this.position.add(this.velocity);
-    this.acceleration.mult(0);
-  }
 
   //======================================
   void drawTank(float x, float y) {
@@ -518,7 +543,7 @@ class Tank extends Sprite {
 
     imageMode(CENTER);
 
-    rotate(this.heading);
+    rotate(this.velocity.heading());
     drawTank(0, 0);
     imageMode(CORNER);
     strokeWeight(1);
@@ -534,8 +559,8 @@ class Tank extends Sprite {
   }
 
   void displaySightRay() {
-    PVector rayDir  = new PVector(cos(heading), sin(heading));
-    PVector perp    = new PVector(-sin(heading), cos(heading));
+    PVector rayDir  = new PVector(cos(this.velocity.heading()), sin(this.velocity.heading()));
+    PVector perp    = new PVector(-sin(this.velocity.heading()), cos(this.velocity.heading()));
     float   rayLen  = 75;
     float   halfW   = radius * 0.5;
 
@@ -547,37 +572,64 @@ class Tank extends Sprite {
     boolean hit = enemyInSight();
 
     pushStyle();
-      // Corridor sides
-      stroke(hit ? color(255, 50, 50, 180) : color(255, 220, 0, 100));
-      strokeWeight(1);
-      noFill();
+    // Corridor sides
+    stroke(hit ? color(255, 50, 50, 180) : color(255, 220, 0, 100));
+    strokeWeight(1);
+    noFill();
 
-      // Left side of corridor
-      line(position.x + perp.x * halfW, position.y + perp.y * halfW,
-          tipX        + perp.x * halfW, tipY        + perp.y * halfW);
+    // Left side of corridor
+    line(position.x + perp.x * halfW, position.y + perp.y * halfW,
+      tipX        + perp.x * halfW, tipY        + perp.y * halfW);
 
-      // Right side of corridor
-      line(position.x - perp.x * halfW, position.y - perp.y * halfW,
-          tipX        - perp.x * halfW, tipY        - perp.y * halfW);
+    // Right side of corridor
+    line(position.x - perp.x * halfW, position.y - perp.y * halfW,
+      tipX        - perp.x * halfW, tipY        - perp.y * halfW);
 
-      // Cap at the end
-      line(tipX + perp.x * halfW, tipY + perp.y * halfW,
-          tipX - perp.x * halfW, tipY - perp.y * halfW);
+    // Cap at the end
+    line(tipX + perp.x * halfW, tipY + perp.y * halfW,
+      tipX - perp.x * halfW, tipY - perp.y * halfW);
 
-      // Centre line
-      stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 180));
-      strokeWeight(1.5);
-      line(position.x, position.y, tipX, tipY);
+    // Centre line
+    stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 180));
+    strokeWeight(1.5);
+    line(position.x, position.y, tipX, tipY);
 
-      // Filled corridor — semi-transparent
-      fill(hit ? color(255, 50, 50, 50) : color(255, 220, 0, 40));
-      noStroke();
-      beginShape();
-        vertex(position.x + perp.x * halfW, position.y + perp.y * halfW);
-        vertex(tipX        + perp.x * halfW, tipY        + perp.y * halfW);
-        vertex(tipX        - perp.x * halfW, tipY        - perp.y * halfW);
-        vertex(position.x  - perp.x * halfW, position.y  - perp.y * halfW);
-      endShape(CLOSE);
+    // Filled corridor — semi-transparent
+    fill(hit ? color(255, 50, 50, 50) : color(255, 220, 0, 40));
+    noStroke();
+    beginShape();
+    vertex(position.x + perp.x * halfW, position.y + perp.y * halfW);
+    vertex(tipX        + perp.x * halfW, tipY        + perp.y * halfW);
+    vertex(tipX        - perp.x * halfW, tipY        - perp.y * halfW);
+    vertex(position.x  - perp.x * halfW, position.y  - perp.y * halfW);
+    endShape(CLOSE);
+    popStyle();
+  }
+
+  void displayPath() {
+    if (path.isEmpty()) return;
+    pushStyle();
+    //noStroke();
+
+    // Draw all path nodes
+    for (int i = 0; i < path.size(); i++) {
+      Node n = path.get(i);
+
+      if (i == path.size() - 1) {
+        // Goal node — distinct colour
+        fill(255, 80, 80, 200);
+      } else {
+        // Intermediate path nodes
+        fill(80, 180, 255, 160);
+      }
+      ellipse(n.position.x, n.position.y, n.w * 3, n.h * 3);
+    }
+
+    // Draw the current target node (next step) on top
+    if (targetNode != null) {
+      fill(255, 200, 0, 200);
+      ellipse(targetNode.position.x, targetNode.position.y, targetNode.w * 3, targetNode.h * 3);
+    }
     popStyle();
   }
 
