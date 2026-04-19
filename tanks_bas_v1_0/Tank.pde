@@ -13,7 +13,7 @@ class Tank extends Sprite {
   float turnStep = 0.5;
   float heading;
 
-  float maxForce = 0.05;
+  float maxForce = 0.1;
 
   // Identity
   int tank_id;
@@ -34,6 +34,8 @@ class Tank extends Sprite {
   Node currentNode;
   Node lastNode;
   Node targetNode;
+
+  Node lastTargetNode;
   ArrayList<Node> path = new ArrayList<Node>();
   PVector prevPosition; // Change to use lastNode.posiiton
 
@@ -96,6 +98,18 @@ class Tank extends Sprite {
       if (enemyInSight()) {
         println("Enemy detected");
       }
+
+      if (tankInSight()) {
+
+
+        if (targetNode != null)
+        {
+          println("Enemy detected");
+          targetNode.type = NodeType.OBSTACLE;
+        }
+      }
+
+
       if (isMoreThanHalfInsideEnemyBase() && enemyInSight()) {
         path.clear();
         reportWaitFrames = 0;
@@ -276,6 +290,7 @@ class Tank extends Sprite {
     ArrayList<Node> queue = new ArrayList<Node>();
     ArrayList<Node> candidates = new ArrayList<Node>();
 
+
     for (Node n : knownMap.values()) {
       if (!n.visited) {
 
@@ -384,6 +399,7 @@ class Tank extends Sprite {
 
   void followPath() {
     if (path.isEmpty()) return;
+    lastTargetNode = targetNode;
     targetNode = path.get(0);
     // println("target node is " + targetNode.row + "" + targetNode.col);
     //turnToTarget();
@@ -399,6 +415,8 @@ class Tank extends Sprite {
       //position.set(targetNode.position);
       //stopMoving();
       path.remove(0);
+      lastTargetNode = targetNode;
+
       targetNode = path.isEmpty() ? null : path.get(0);
     }
   }
@@ -429,6 +447,13 @@ class Tank extends Sprite {
     velocity.mult(0.8); // energy loss
 
     // optional: prevent sticking
+
+    if (lastTargetNode != null)
+    {
+      lastTargetNode.exploredState = ExploredState.VISITED;
+      path.clear();
+    }
+
     position.add(velocity.copy().normalize().mult(2));
   }
 
@@ -437,6 +462,13 @@ class Tank extends Sprite {
       position.x, position.y,
       heading, 75, radius,
       team.getId()
+      );
+  }
+
+  boolean tankInSight() {
+    return worldSensor.senseTank(this,
+      position.x, position.y,
+      heading, 75, radius
       );
   }
 
@@ -489,6 +521,8 @@ class Tank extends Sprite {
     velocity.mult(1.0 - constrain(turnAmount, 0, 0.7));
     this.position.add(this.velocity);
     this.acceleration.mult(0);
+
+    println("Speed:" + speed);
   }
 
 
