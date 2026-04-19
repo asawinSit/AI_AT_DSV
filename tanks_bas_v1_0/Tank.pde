@@ -11,7 +11,6 @@ class Tank extends Sprite {
   float speed = 0;
   float maxSpeed = 3.0;
   float turnStep = 0.5;
-  float heading;
 
   float maxForce = 0.1;
 
@@ -19,6 +18,7 @@ class Tank extends Sprite {
   int tank_id;
   Team team;
   color col;
+  boolean active;
 
   // State
   TankState tankState;
@@ -26,6 +26,8 @@ class Tank extends Sprite {
   // Sensor
   WorldSensor worldSensor;
   int cellSize; // Should the tank know this? Argument, tank team decision for accurate search.
+  float   rayLength  = 75;
+  float   rayWidth;
 
   // own knowledge graph
   HashMap<String, Node> knownMap = new HashMap<String, Node>();
@@ -55,8 +57,7 @@ class Tank extends Sprite {
     this.acceleration = new PVector(0, 0);
     this.tankState = TankState.STOP;
 
-    if (this.team.getId() == 0) this.heading = radians(0);
-    if (this.team.getId() == 1) this.heading = radians(180);
+    rayWidth   = radius /2;
   }
 
   void addHomeBase(ArrayList<Node> homeBase) {
@@ -79,6 +80,7 @@ class Tank extends Sprite {
   }
 
   void update() {
+    if (active != true) return;
     if (this.tank_id != 1) return; // Endast tank0 i team0 uppdateras
 
     int col = worldToCol(position.x);
@@ -92,25 +94,14 @@ class Tank extends Sprite {
       currentNode.exploredState = ExploredState.VISITED;
       perceiveNeighbours();
     }
+    if (enemyInSight()) {
+      println("Enemy detected");
+    }
 
     switch (tankState) {
     case SEARCH:
-      if (enemyInSight()) {
-        println("Enemy detected");
-      }
 
-      if (tankInSight()) {
-
-
-        if (targetNode != null)
-        {
-          println("Enemy detected");
-          targetNode.type = NodeType.OBSTACLE;
-        }
-      }
-
-
-      if (isMoreThanHalfInsideEnemyBase() && enemyInSight()) {
+      if (worldSensor.isMoreThanHalfInsideABase(69, this) && enemyInSight()) {
         path.clear();
         reportWaitFrames = 0;
         tankState = TankState.REPORT;
@@ -144,15 +135,17 @@ class Tank extends Sprite {
 
   void returnToBase() {
     // Still travelling home
-    if (!isMoreThanHalfInsideHomeBase()) {
+    if  ( currentNode.type != NodeType.HOME_BASE )
+    {
       if (path.isEmpty()) computePathToNearestBase();
       followPath();
       return;
+    } else if (worldSensor.isMoreThanHalfInsideABase(team.id, this))
+    {
+      stopMoving();
+      reportWaitFrames++;
     }
 
-    // Inside home base — stand still and count frames
-    stopMoving();
-    reportWaitFrames++;
 
     if (reportWaitFrames >= REPORT_WAIT_DURATION) {
       // Report complete — resume patrol
@@ -161,21 +154,28 @@ class Tank extends Sprite {
       path.clear();
       tankState = TankState.SEARCH;
     }
+
+
+
+
+    // Inside home base — stand still and count frames
   }
 
   void computePathToNearestBase() {
-    computePathToFirstOf(NodeType.HOME_BASE);
+    computePathTo(NodeType.HOME_BASE);
   }
 
-  void computePathToFirstOf(NodeType goalType) {
+  void computePathTo(NodeType goalType) {
     path.clear();
     if (currentNode == null) return;
 
+    // Use a map to track the best known pixel-distance cost to each node
+    HashMap<Node, Float> costSoFar = new HashMap<Node, Float>();
     ArrayList<Node> touched = new ArrayList<Node>();
     ArrayList<Node> queue   = new ArrayList<Node>();
 
-    currentNode.visited = true;
     currentNode.parent  = null;
+    costSoFar.put(currentNode, 0.0);
     touched.add(currentNode);
     queue.add(currentNode);
 
@@ -183,6 +183,8 @@ class Tank extends Sprite {
     Node    goal  = null;
 
     while (!queue.isEmpty()) {
+      // Sort by accumulated pixel distance — lowest cost first (Dijkstra)
+      queue.sort((a, b) -> Float.compare(costSoFar.get(a), costSoFar.get(b)));
       Node current = queue.remove(0);
 
       if (current.type == goalType && current != currentNode) {
@@ -192,14 +194,23 @@ class Tank extends Sprite {
       }
 
       for (Node nb : current.neighbors) {
-        if (nb.visited) continue;
-        if (!nb.isTraversable()) continue;
-        if (nb.exploredState == ExploredState.UNEXPLORED) continue;
+        if (!nb.isTraversable())                           continue;
+        if (nb.exploredState == ExploredState.UNEXPLORED)  continue;
 
-        nb.visited = true;
-        nb.parent  = current;
-        touched.add(nb);
-        queue.add(nb);
+        // Pixel distance from current node to this neighbour
+        float stepCost = dist(current.position.x, current.position.y,
+          nb.position.x, nb.position.y);
+        float newCost  = costSoFar.get(current) + stepCost;
+
+        // Only add/update if we found a cheaper path to this neighbour
+        if (!costSoFar.containsKey(nb) || newCost < costSoFar.get(nb)) {
+          costSoFar.put(nb, newCost);
+          nb.parent = current;
+          if (!touched.contains(nb)) {
+            touched.add(nb);
+            queue.add(nb);
+          }
+        }
       }
     }
 
@@ -212,7 +223,6 @@ class Tank extends Sprite {
     }
 
     for (Node n : touched) {
-      n.visited = false;
       n.parent = null;
     }
   }
@@ -331,6 +341,9 @@ class Tank extends Sprite {
       }
       score += dist(position.x, position.y, n.position.x, n.position.y);
       if (n.exploredState == ExploredState.VISITED) score += 10000;
+
+      if (n.exploredState == ExploredState.PENDING) score += 5000;
+
       if (score < bestScore) {
         bestScore = score;
         bestNode = n;
@@ -372,6 +385,7 @@ class Tank extends Sprite {
         if (nb.isVisible()) cost -= 100;
         if (nb == lastNode) cost += 5;
         if (nb.type == NodeType.HOME_BASE) cost += 1000;
+        if (nb.exploredState == ExploredState.PENDING) cost += 10;
 
         cost += nb.distanceFromBase;
         cost += dist(position.x, position.y, nb.position.x, nb.position.y);
@@ -401,19 +415,10 @@ class Tank extends Sprite {
     if (path.isEmpty()) return;
     lastTargetNode = targetNode;
     targetNode = path.get(0);
-    // println("target node is " + targetNode.row + "" + targetNode.col);
-    //turnToTarget();
-    seek();
-    if (isLookingAtTarget()) {
 
-      //moveForward();
-    } else {
-      //stopMoving();
-    }
+    seek();
 
     if (isAtTarget()) {
-      //position.set(targetNode.position);
-      //stopMoving();
       path.remove(0);
       lastTargetNode = targetNode;
 
@@ -439,28 +444,31 @@ class Tank extends Sprite {
 
   void onCollisionDetected(Sprite hitObject) {
 
-    PVector normal = PVector.sub(position, hitObject.position);
-    normal.normalize();
-
-    velocity = PVector.sub(velocity, PVector.mult(normal, 2 * velocity.dot(normal)));
-
-    velocity.mult(0.8); // energy loss
-
-    // optional: prevent sticking
-
-    if (lastTargetNode != null)
+    if (active == true)
     {
-      lastTargetNode.exploredState = ExploredState.VISITED;
-      path.clear();
-    }
+      PVector normal = PVector.sub(position, hitObject.position);
+      normal.normalize();
 
-    position.add(velocity.copy().normalize().mult(2));
+      velocity = PVector.sub(velocity, PVector.mult(normal, 2 * velocity.dot(normal)));
+
+      velocity.mult(0.8); // energy loss
+
+      // optional: prevent sticking
+
+      if (lastTargetNode != null)
+      {
+        lastTargetNode.exploredState = ExploredState.PENDING;
+        path.clear();
+      }
+
+      position.add(velocity.copy().normalize().mult(2));
+    }
   }
 
   boolean enemyInSight() {
     return worldSensor.senseEnemyInRay(
       position.x, position.y,
-      heading, 75, radius,
+      this.velocity.heading(), rayLength, rayWidth,
       team.getId()
       );
   }
@@ -468,32 +476,8 @@ class Tank extends Sprite {
   boolean tankInSight() {
     return worldSensor.senseTank(this,
       position.x, position.y,
-      heading, 75, radius
+      this.velocity.heading(), rayLength, rayWidth
       );
-  }
-
-  void moveForward() {
-    PVector force = new PVector(cos(heading), sin(heading));
-    force.mult(0.1);
-    this.acceleration.add(force);
-  }
-
-  void turnToTarget() {
-    if (targetNode == null) return;
-
-    float angleToTarget = atan2(targetNode.position.y - position.y, targetNode.position.x - position.x);
-    float angleDiff = angleToTarget - heading;
-
-
-
-    while (angleDiff < -PI) angleDiff += TWO_PI;
-    while (angleDiff > PI)  angleDiff -= TWO_PI;
-
-    if (abs(angleDiff) > turnStep) {
-      heading += (angleDiff > 0) ? turnStep : -turnStep;
-    } else {
-      heading = angleToTarget;
-    }
   }
 
 
@@ -501,7 +485,7 @@ class Tank extends Sprite {
     PVector desired = PVector.sub(targetNode.position, this.position);
     desired.setMag(this.maxSpeed);
     PVector steer = PVector.sub(desired, this.velocity);
-    steer.limit(this.maxForce);
+    steer.limit(turnStep);
     this.applyForce(steer);
   }
 
@@ -517,27 +501,16 @@ class Tank extends Sprite {
 
     this.velocity.add(this.acceleration);
     this.velocity.limit(this.maxSpeed);
-    float turnAmount = acceleration.mag();
+    float turnAmount = 0.001;
     velocity.mult(1.0 - constrain(turnAmount, 0, 0.7));
     this.position.add(this.velocity);
     this.acceleration.mult(0);
 
-    println("Speed:" + speed);
+    // println("Speed:" + velocity.mag());
   }
 
 
-  boolean isLookingAtTarget() {
-    if (targetNode == null) return false;
 
-    float angleToTarget = atan2(targetNode.position.y - position.y, targetNode.position.x - position.x);
-    float angleDiff = angleToTarget - heading;
-
-    while (angleDiff < -PI) angleDiff += TWO_PI;
-    while (angleDiff > PI)  angleDiff -= TWO_PI;
-
-    float tolerance = turnStep * 0.5;
-    return abs(angleDiff) < tolerance;
-  }
 
   boolean isAtTarget() {
     if (targetNode == null) return false;
@@ -595,12 +568,11 @@ class Tank extends Sprite {
   void displaySightRay() {
     PVector rayDir  = new PVector(cos(this.velocity.heading()), sin(this.velocity.heading()));
     PVector perp    = new PVector(-sin(this.velocity.heading()), cos(this.velocity.heading()));
-    float   rayLen  = 75;
-    float   halfW   = radius * 0.5;
+
 
     // Ray tip
-    float tipX = position.x + rayDir.x * rayLen;
-    float tipY = position.y + rayDir.y * rayLen;
+    float tipX = position.x + rayDir.x * rayLength;
+    float tipY = position.y + rayDir.y * rayLength;
 
     // Colour changes when an enemy is detected
     boolean hit = enemyInSight();
@@ -612,16 +584,16 @@ class Tank extends Sprite {
     noFill();
 
     // Left side of corridor
-    line(position.x + perp.x * halfW, position.y + perp.y * halfW,
-      tipX        + perp.x * halfW, tipY        + perp.y * halfW);
+    line(position.x + perp.x * rayWidth, position.y + perp.y * rayWidth,
+      tipX        + perp.x * rayWidth, tipY        + perp.y * rayWidth);
 
     // Right side of corridor
-    line(position.x - perp.x * halfW, position.y - perp.y * halfW,
-      tipX        - perp.x * halfW, tipY        - perp.y * halfW);
+    line(position.x - perp.x * rayWidth, position.y - perp.y * rayWidth,
+      tipX        - perp.x * rayWidth, tipY        - perp.y * rayWidth);
 
     // Cap at the end
-    line(tipX + perp.x * halfW, tipY + perp.y * halfW,
-      tipX - perp.x * halfW, tipY - perp.y * halfW);
+    line(tipX + perp.x * rayWidth, tipY + perp.y * rayWidth,
+      tipX - perp.x * rayWidth, tipY - perp.y * rayWidth);
 
     // Centre line
     stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 180));
@@ -632,10 +604,10 @@ class Tank extends Sprite {
     fill(hit ? color(255, 50, 50, 50) : color(255, 220, 0, 40));
     noStroke();
     beginShape();
-    vertex(position.x + perp.x * halfW, position.y + perp.y * halfW);
-    vertex(tipX        + perp.x * halfW, tipY        + perp.y * halfW);
-    vertex(tipX        - perp.x * halfW, tipY        - perp.y * halfW);
-    vertex(position.x  - perp.x * halfW, position.y  - perp.y * halfW);
+    vertex(position.x + perp.x * rayWidth, position.y + perp.y * rayWidth);
+    vertex(tipX        + perp.x * rayWidth, tipY        + perp.y * rayWidth);
+    vertex(tipX        - perp.x * rayWidth, tipY        - perp.y * rayWidth);
+    vertex(position.x  - perp.x * rayWidth, position.y  - perp.y * rayWidth);
     endShape(CLOSE);
     popStyle();
   }
@@ -694,25 +666,5 @@ class Tank extends Sprite {
 
   int getId() {
     return tank_id;
-  }
-
-  boolean isMoreThanHalfInsideHomeBase() {
-    float hbX = team.homebase_x, hbY = team.homebase_y;
-    float hbW = team.homebase_width, hbH = team.homebase_height;
-    float threshold = radius * 0.5;
-    return position.x > hbX + threshold
-      && position.x < hbX + hbW - threshold
-      && position.y > hbY + threshold
-      && position.y < hbY + hbH - threshold;
-  }
-
-  boolean isMoreThanHalfInsideEnemyBase() {
-    float ebX = width - 151, ebY = height - 351;
-    float ebW = 150, ebH = 350;
-    float threshold = radius * 0.5;
-    return position.x > ebX + threshold
-      && position.x < ebX + ebW - threshold
-      && position.y > ebY + threshold
-      && position.y < ebY + ebH - threshold;
   }
 }

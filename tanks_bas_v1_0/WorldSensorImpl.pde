@@ -1,10 +1,14 @@
 class WorldSensorImpl implements WorldSensor {
   Grid grid;
   Tank[] allTanks = new Tank[6];
+  Team myTeam;
+  Team enemyTeam;
 
-  WorldSensorImpl(Grid grid, Tank[] allTanks) {
+  WorldSensorImpl(Grid grid, Tank[] allTanks, Team myTeam, Team enemyTeam ) {
     this.grid = grid;
     this.allTanks = allTanks;
+    this.myTeam = myTeam;
+    this.enemyTeam = enemyTeam;
   }
 
   NodeType senseTypeAt(int col, int row) {
@@ -39,5 +43,38 @@ class WorldSensorImpl implements WorldSensor {
       if (perp < rayWidth * 0.5 + t.radius) return true;
     }
     return false;
+  }
+
+  boolean isMoreThanHalfInsideABase(int myTeamId, Tank self)
+  {
+    Team team = null;
+    if (myTeamId==myTeam.id) {
+      team = myTeam;
+    } else {
+      team = enemyTeam;
+    }
+    if (team == null)
+    {
+      return false;
+    }
+
+    float hbX = team.homebase_x, hbY = team.homebase_y;
+    float hbW = team.homebase_width, hbH = team.homebase_height;
+
+    int inside = 0;
+    int total = 16;
+
+    for (int i = 0; i < total; i++) {
+      float angle = TWO_PI * i / total;
+      float px = self.position.x + cos(angle) * self.radius;
+      float py = self.position.y + sin(angle) * self.radius;
+
+      if (px >= hbX && px <= hbX + hbW &&
+        py >= hbY && py <= hbY + hbH) {
+        inside++;
+      }
+    }
+
+    return inside >= total / 2;
   }
 }

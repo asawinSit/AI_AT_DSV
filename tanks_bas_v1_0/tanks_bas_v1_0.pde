@@ -78,7 +78,7 @@ void setup()
   for (Tree t : allTrees)
   {
     collisionManager.objects.add(t);
-    grid.markObstacle(t.position, t.radius, tank_size / 2);
+    grid.markObstacle(t.position, t.radius, 5);
   }
 
   for (Tank t : allTanks)
@@ -88,6 +88,7 @@ void setup()
 
   selectedTank = allTanks[0];
   allTanks[0].tankState = TankState.SEARCH;
+  allTanks[0].active = true;
 }
 
 void setupTanks()
@@ -99,7 +100,7 @@ void setupTanks()
   allTanks[4] = team1.tanks[1];
   allTanks[5] = team1.tanks[2];
 
-  sensor = new WorldSensorImpl(grid, allTanks);
+  sensor = new WorldSensorImpl(grid, allTanks, team0, team1);
   allTanks[0].worldSensor = sensor;
   allTanks[0].cellSize = grid.grid_size;
 

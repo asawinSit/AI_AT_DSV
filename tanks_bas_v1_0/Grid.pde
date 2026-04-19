@@ -13,15 +13,15 @@ class Grid {
   }
 
   void createGrid() {
-    for (int c = 0; c < cols; c++){
-      for (int r = 0; r < rows; r++){
+    for (int c = 0; c < cols; c++) {
+      for (int r = 0; r < rows; r++) {
         float px = c*grid_size+grid_size;
         float py = r*grid_size+grid_size;
         nodes[c][r] = new Node(c, r, px, py);
       }
     }
-    for (int c = 0; c < cols; c++){
-      for (int r = 0; r < rows; r++){
+    for (int c = 0; c < cols; c++) {
+      for (int r = 0; r < rows; r++) {
         addNeighbors(nodes[c][r]);
       }
     }
@@ -42,8 +42,8 @@ class Grid {
 
   // BFS Utilities
   void resetVisited() {
-    for (Node[] col : nodes){
-      for (Node n : col){
+    for (Node[] col : nodes) {
+      for (Node n : col) {
         n.visited = false;
       }
     }
@@ -79,11 +79,11 @@ class Grid {
     return best;
   }
 
-  Node getNodeAt(PVector p){
+  Node getNodeAt(PVector p) {
     return getNodeAt(p.x, p.y);
   }
 
-  Node getNodeAt(float px, float py){
+  Node getNodeAt(float px, float py) {
     int c = (int)((px - grid_size * 0.5) / grid_size);
     int r = (int)((py - grid_size * 0.5) / grid_size);
     c = constrain(c, 0, cols - 1);
@@ -107,8 +107,8 @@ class Grid {
     return nodes[c][r].type;
   }
 
-  void markObstacle(PVector centre, float obstacleRadius, float tankRadius) {
-    float effective = obstacleRadius + tankRadius;
+  void markObstacle(PVector centre, float obstacleRadius, float offset) {
+    float effective = obstacleRadius + offset;
     for (int c = 0; c < cols; c++)
       for (int r = 0; r < rows; r++) {
         Node n = nodes[c][r];
