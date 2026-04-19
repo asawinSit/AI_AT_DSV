@@ -46,6 +46,11 @@ Tank selectedTank;
 
 Tank[] allTanks = new Tank[6];
 
+WorldSensorImpl sensor;
+
+static final int ORIGINAL_FRAME_RATE = 60;
+int currentFrameRate = ORIGINAL_FRAME_RATE;
+
 public void settings() {
   size(width, height);
 }
@@ -53,7 +58,7 @@ public void settings() {
 void setup()
 {
 
-  frameRate(60);
+  frameRate(ORIGINAL_FRAME_RATE);
   up             = false;
   down           = false;
   mouse_pressed  = false;
@@ -94,7 +99,8 @@ void setupTanks()
   allTanks[4] = team1.tanks[1];
   allTanks[5] = team1.tanks[2];
 
-  allTanks[0].worldSensor = grid;
+  sensor = new WorldSensorImpl(grid, allTanks);
+  allTanks[0].worldSensor = sensor;
   allTanks[0].cellSize = grid.grid_size;
 
   ArrayList<Node> homeNodes = buildBaseNodes(team0, NodeType.HOME_BASE);
@@ -103,8 +109,8 @@ void setupTanks()
 
 void setupTeams()
 {
-  team0 = new Team(0, tank_size, team0Color, team0_tank0_startpos, 1, team0_tank1_startpos, 2, team0_tank2_startpos, 3, grid);
-  team1 = new Team(1, tank_size, team1Color, team1_tank0_startpos, 4, team1_tank1_startpos, 5, team1_tank2_startpos, 6, grid);
+  team0 = new Team(0, tank_size, team0Color, team0_tank0_startpos, 1, team0_tank1_startpos, 2, team0_tank2_startpos, 3);
+  team1 = new Team(1, tank_size, team1Color, team1_tank0_startpos, 4, team1_tank1_startpos, 5, team1_tank2_startpos, 6);
 
   markBaseType(team0, NodeType.HOME_BASE);
   markBaseType(team1, NodeType.ENEMY_BASE);
@@ -220,6 +226,12 @@ void displayDebug()
       ellipse(n.position.x, n.position.y, n.w, n.h);
     }
 
+    allTanks[0].displaySightRay();
+
+    //for (Tank tank : allTanks){
+    //  tank.displaySightRay();
+    //}
+
     for (Tree tree : allTrees) {
       tree.displayCollisionRadius();
     }
@@ -234,7 +246,7 @@ void updateTanksLogic() {
 
 //======================================
 void keyPressed() {
-  System.out.println("keyPressed!");
+  //System.out.println("keyPressed!");
 
   if (key == CODED) {
     switch(keyCode) {
@@ -255,7 +267,7 @@ void keyPressed() {
 }
 
 void keyReleased() {
-  System.out.println("keyReleased!");
+  //System.out.println("keyReleased!");
   if (key == CODED) {
     switch(keyCode) {
     case LEFT:
@@ -290,5 +302,21 @@ void keyReleased() {
     selectedTank.targetNode =  grid.getRandomNode();
     println( selectedTank.targetNode.row + " " + selectedTank.targetNode.col);
     selectedTank.tankState = TankState.SEARCH;
+  }
+
+  if (key == '1'){
+    if (currentFrameRate < ORIGINAL_FRAME_RATE * 3){
+      currentFrameRate += 10;
+      frameRate(currentFrameRate);
+      println("Frame rate: " + currentFrameRate);
+    }
+  }
+
+  if (key == '2'){
+    if (currentFrameRate > ORIGINAL_FRAME_RATE){
+      currentFrameRate -= 10;
+      frameRate(currentFrameRate);
+      println("Frame rate: " + currentFrameRate);
+    }
   }
 }

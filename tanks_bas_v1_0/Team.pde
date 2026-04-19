@@ -20,7 +20,7 @@ class Team {
   Team (int team_id, int tank_size, color c,
     PVector tank0_startpos, int tank0_id,
     PVector tank1_startpos, int tank1_id,
-    PVector tank2_startpos, int tank2_id, Grid worldSensor)
+    PVector tank2_startpos, int tank2_id)
   {
     this.id = team_id;
     this.tank_size = tank_size;
@@ -31,9 +31,9 @@ class Team {
 
     this.numberOfHits = 0;
 
-    tanks[0] = new Tank(tank0_id, this, tank0_startpos, tank_size, c, worldSensor, worldSensor.grid_size);
-    tanks[1] = new Tank(tank1_id, this, tank1_startpos, tank_size, c, worldSensor, worldSensor.grid_size);
-    tanks[2] = new Tank(tank2_id, this, tank2_startpos, tank_size, c, worldSensor, worldSensor.grid_size);
+    tanks[0] = new Tank(tank0_id, this, tank0_startpos, tank_size, c);
+    tanks[1] = new Tank(tank1_id, this, tank1_startpos, tank_size, c);
+    tanks[2] = new Tank(tank2_id, this, tank2_startpos, tank_size, c);
 
 
     if (this.id==0) {

@@ -20,9 +20,8 @@ class Tank extends Sprite {
   // State
   TankState tankState;
 
-  // sensor - Mabye change later
-  // Only calls it for percieving what type is at a specific col or row
-  Grid worldSensor;
+  // Sensor
+  WorldSensor worldSensor;
   int cellSize; // Should the tank know this? Argument, tank team decision for accurate search.
 
   // own knowledge graph
@@ -35,20 +34,21 @@ class Tank extends Sprite {
   ArrayList<Node> path = new ArrayList<Node>();
   PVector prevPosition; // Change to use lastNode.posiiton
 
-  Tank(int id, Team team, PVector _startpos, float _size, color _col, Grid worldSensor, int cellSize) {
+  int reportWaitFrames = 0;
+  static final int REPORT_WAIT_DURATION = 180; // 3 seconds at 60fps
+
+  Tank(int id, Team team, PVector _startpos, float _size, color _col) {
     this.tank_id      = id;
     this.diameter     = _size;
     this.radius       = diameter/2;
     this.col          = _col;
     this.team         = team;
-    this.worldSensor  = worldSensor;
     this.startpos     = _startpos.copy();
     this.position     = _startpos.copy();
     this.prevPosition = _startpos.copy();
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
     this.tankState = TankState.STOP;
-    this.cellSize = cellSize;
 
     if (this.team.getId() == 0) this.heading = radians(0);
     if (this.team.getId() == 1) this.heading = radians(180);
@@ -90,8 +90,12 @@ class Tank extends Sprite {
 
     switch (tankState) {
     case SEARCH:
-      if (currentNode.type == NodeType.ENEMY_BASE) {
-        println("Enemy base reached");
+      if (enemyInSight()){
+        println("Enemy detected");
+      }
+      if (isMoreThanHalfInsideEnemyBase() && enemyInSight()) {
+        path.clear();
+        reportWaitFrames = 0;
         tankState = TankState.REPORT;
       } else {
         search();
@@ -123,14 +127,28 @@ class Tank extends Sprite {
   }
 
   void returnToBase() {
-    if (path.isEmpty()) {
-      computePathToFirstOf(NodeType.HOME_BASE);
+    // Still travelling home
+    if (!isMoreThanHalfInsideHomeBase()) {
+      if (path.isEmpty()) computePathToNearestBase();
+      followPath();
+      return;
     }
-    followPath();
-    if (path.isEmpty() && isMoreThanHalfInsideHomeBase()) {
-      stopMoving();
-      tankState = TankState.STOP;
+
+    // Inside home base — stand still and count frames
+    stopMoving();
+    reportWaitFrames++;
+
+    if (reportWaitFrames >= REPORT_WAIT_DURATION) {
+      // Report complete — resume patrol
+      println("Report Completed");
+      reportWaitFrames = 0;
+      path.clear();
+      tankState = TankState.SEARCH;
     }
+  }
+
+  void computePathToNearestBase() {
+    computePathToFirstOf(NodeType.HOME_BASE);
   }
 
   void computePathToFirstOf(NodeType goalType) {
@@ -289,11 +307,9 @@ class Tank extends Sprite {
     int bestScore = Integer.MAX_VALUE;
     for (Node n : candidates) {
       int score = 0;
-      if (n.type != NodeType.HOME_BASE)
-      {
-        score  = n.distanceFromBase * 150;
-      } else
-      {
+      if (n.type != NodeType.HOME_BASE){
+        score = n.distanceFromBase * 150;
+      } else{
         score += 20000;
       }
       score += dist(position.x, position.y, n.position.x, n.position.y);
@@ -335,12 +351,10 @@ class Tank extends Sprite {
 
         int cost = current.cost + 1;
 
-        if (nb.isVisible())
-          cost -= 100;
-
-        if (nb == lastNode)
-          cost += 5;
-
+        if (nb.isVisible()) cost -= 100;
+        if (nb == lastNode) cost += 5;
+        if (nb.type == NodeType.HOME_BASE) cost += 1000;
+        
         cost += nb.distanceFromBase;
         cost += dist(position.x, position.y, nb.position.x, nb.position.y);
         nb.cost = cost;
@@ -402,7 +416,7 @@ class Tank extends Sprite {
   }
 
   void onCollisionDetected(Sprite hitObject) {
-    println("Collision detected");
+    // println("Collision detected");
     // Revert to last safe node position
     if (lastNode != null) {
       position.set(lastNode.position);
@@ -413,6 +427,14 @@ class Tank extends Sprite {
     acceleration.mult(0);
     path.clear();          // force recompute of path around obstacle
     tankState = TankState.SEARCH;  // resume searching, not freezing
+  }
+
+  boolean enemyInSight() {
+    return worldSensor.senseEnemyInRay(
+      position.x, position.y,
+      heading, 75, radius,
+      team.getId()
+    );
   }
 
   void moveForward() {
@@ -509,6 +531,54 @@ class Tank extends Sprite {
     // text(this.name +"\n( " + this.position.x + ", " + this.position.y + " )", 25+5, -5-5);
 
     popMatrix();
+  }
+
+  void displaySightRay() {
+    PVector rayDir  = new PVector(cos(heading), sin(heading));
+    PVector perp    = new PVector(-sin(heading), cos(heading));
+    float   rayLen  = 75;
+    float   halfW   = radius * 0.5;
+
+    // Ray tip
+    float tipX = position.x + rayDir.x * rayLen;
+    float tipY = position.y + rayDir.y * rayLen;
+
+    // Colour changes when an enemy is detected
+    boolean hit = enemyInSight();
+
+    pushStyle();
+      // Corridor sides
+      stroke(hit ? color(255, 50, 50, 180) : color(255, 220, 0, 100));
+      strokeWeight(1);
+      noFill();
+
+      // Left side of corridor
+      line(position.x + perp.x * halfW, position.y + perp.y * halfW,
+          tipX        + perp.x * halfW, tipY        + perp.y * halfW);
+
+      // Right side of corridor
+      line(position.x - perp.x * halfW, position.y - perp.y * halfW,
+          tipX        - perp.x * halfW, tipY        - perp.y * halfW);
+
+      // Cap at the end
+      line(tipX + perp.x * halfW, tipY + perp.y * halfW,
+          tipX - perp.x * halfW, tipY - perp.y * halfW);
+
+      // Centre line
+      stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 180));
+      strokeWeight(1.5);
+      line(position.x, position.y, tipX, tipY);
+
+      // Filled corridor — semi-transparent
+      fill(hit ? color(255, 50, 50, 50) : color(255, 220, 0, 40));
+      noStroke();
+      beginShape();
+        vertex(position.x + perp.x * halfW, position.y + perp.y * halfW);
+        vertex(tipX        + perp.x * halfW, tipY        + perp.y * halfW);
+        vertex(tipX        - perp.x * halfW, tipY        - perp.y * halfW);
+        vertex(position.x  - perp.x * halfW, position.y  - perp.y * halfW);
+      endShape(CLOSE);
+    popStyle();
   }
 
   String getPositionKey(int column, int row) {
