@@ -318,7 +318,7 @@ class Tank extends Sprite {
 
         if (!nb.isTraversable()) continue;
         if (nb.exploredState == ExploredState.UNEXPLORED) continue;
-
+        if (nb.exploredState == ExploredState.VISITED) continue;
         if (nb.exploredState == ExploredState.VISIBLE) {
           candidates.add(nb);
         }
@@ -339,7 +339,6 @@ class Tank extends Sprite {
         score += 20000;
       }
       score += dist(position.x, position.y, n.position.x, n.position.y);
-      if (n.exploredState == ExploredState.VISITED) score += 10000;
 
       if (n.exploredState == ExploredState.PENDING) score += 5000;
 
@@ -621,7 +620,7 @@ class Tank extends Sprite {
     popStyle();
   }
 
-  void displayKnownMap(){
+  void displayKnownMap() {
     for (Node n : knownMap.values()) {
       fill(n.getColor());
       ellipse(n.position.x, n.position.y, n.w, n.h);
