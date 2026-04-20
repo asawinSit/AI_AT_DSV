@@ -29,9 +29,41 @@ class CollisionManager {
 
     return distSq < (minDistance * minDistance);
   }
+
+
+
+  boolean isCollidingWithBoundary(Sprite self) {
+    if ( self.position.x > width-self.radius) {
+      self.position.x = width-self.radius;
+      return true;
+    } else if ( self.position.x <  self.radius) {
+      self.position.x =  self.radius;
+      return true;
+    } else if ( self.position.y > height- self.radius) {
+      self.position.y = height- self.radius;
+      return true;
+    } else if ( self.position.y <  self.radius) {
+      self.position.y =  self.radius;
+      return true;
+    }
+    return false;
+  }
+
+  void checkBoundaryCollision() {
+
+    for (Sprite object : objects)
+    {
+      if (isCollidingWithBoundary(object))
+      {
+        object.onBoundaryCollisionDetected();
+      }
+    }
+  }
 }
 
-
+interface BoundaryCollisionListener {
+  void onBoundaryCollisionDetected();
+}
 
 
 interface CollisionListener {

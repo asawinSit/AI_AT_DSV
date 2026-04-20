@@ -40,25 +40,11 @@ class Grid {
     }
   }
 
-  // BFS Utilities
-  void resetVisited() {
-    for (Node[] col : nodes) {
-      for (Node n : col) {
-        n.visited = false;
-      }
-    }
-  }
-
   Node getNode(int row, int col)
   {
     return nodes[row][col];
   }
 
-  Node getRandomNode() {
-    int randCol = (int) random(cols);
-    int randRow = (int) random(rows);
-    return nodes[randCol][randRow];
-  }
 
   Node getNearestNode(PVector pvec) {
     float cx = constrain(pvec.x, 1, width - 1);

@@ -115,7 +115,6 @@ class Tank extends Sprite {
       stopMoving();
       break;
     }
-    checkBoundaryCollision();
     updatePosition();
   }
 
@@ -136,8 +135,19 @@ class Tank extends Sprite {
     // Still travelling home
     if  ( currentNode.type != NodeType.HOME_BASE )
     {
-      if (path.isEmpty()) computePathToNearestBase();
+      //Node homeNode computePath();
+      if (path.isEmpty())  computePathToNearestBase();
       followPath();
+      return;
+    }
+    if  ( currentNode.type == NodeType.HOME_BASE && !worldSensor.isMoreThanHalfInsideABase(team.id, this))
+    {
+      PVector dir = worldSensor.getBaseDirection(team.id, this);
+
+      // Scale it by your movement speed
+      dir.mult(maxSpeed);
+
+      velocity = dir;
       return;
     } else if (worldSensor.isMoreThanHalfInsideABase(team.id, this))
     {
@@ -425,44 +435,50 @@ class Tank extends Sprite {
     }
   }
 
-  void checkBoundaryCollision() {
-    if (position.x > width-radius) {
-      position.x = width-radius;
-      velocity.x *= -1;
-    } else if (position.x < radius) {
-      position.x = radius;
-      velocity.x *= -1;
-    } else if (position.y > height-radius) {
-      position.y = height-radius;
-      velocity.y *= -1;
-    } else if (position.y < radius) {
-      position.y = radius;
-      velocity.y *= -1;
-    }
-  }
+
 
   void onCollisionDetected(Sprite hitObject) {
-
-    if (active == true)
-    {
-      PVector normal = PVector.sub(position, hitObject.position);
+    if (active) {
+      // 1. Calculate the normal (vector pointing from hitObject center to this object)
+      PVector normal = PVector.sub(this.position, hitObject.position);
       normal.normalize();
 
-      velocity = PVector.sub(velocity, PVector.mult(normal, 2 * velocity.dot(normal)));
+      // 2. Reflection Formula: v = v - 2 * (v . n) * n
+      // This makes the sprite bounce realistically off the hitObject's "surface"
+      float dotProduct = velocity.dot(normal);
 
-      velocity.mult(0.8); // energy loss
+      // Only bounce if moving TOWARD the object (prevents getting stuck inside)
+      if (dotProduct < 0) {
+        PVector reflection = PVector.mult(normal, 2 * dotProduct);
+        velocity.sub(reflection);
 
-      // optional: prevent sticking
+        // 3. Apply energy loss
+        //velocity.mult(1);
+      }
 
-      if (lastTargetNode != null)
-      {
+      // 4. Reset Pathfinding (Specific to your project)
+      if (lastTargetNode != null) {
         lastTargetNode.exploredState = ExploredState.PENDING;
         path.clear();
       }
 
-      position.add(velocity.copy().normalize().mult(2));
+      // 5. De-penetration: Push the object out so it doesn't overlap next frame
+      position.add(PVector.mult(normal, 2));
     }
   }
+
+  void onBoundaryCollisionDetected() {
+    // 1. Reverse the direction entirely
+    velocity.mult(-1);
+
+    // 2. Apply energy loss (friction/restitution)
+    velocity.mult(0.8);
+
+    // 3. De-penetration: Move it slightly away from the boundary
+    // to prevent getting stuck in a collision loop
+    position.add(PVector.mult(velocity, 2));
+  }
+
 
   boolean enemyInSight() {
     return worldSensor.senseEnemyInRay(

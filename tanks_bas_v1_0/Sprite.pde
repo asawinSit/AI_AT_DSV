@@ -21,9 +21,12 @@ class Sprite implements CollisionListener {
     return position;
   }
 
-  public PImage getImage(){
+  public PImage getImage() {
     return img;
   }
 
-  void onCollisionDetected(Sprite hitObject){}
+  void onCollisionDetected(Sprite hitObject) {
+  }
+  void onBoundaryCollisionDetected() {
+  }
 }

@@ -77,4 +77,25 @@ class WorldSensorImpl implements WorldSensor {
 
     return inside >= total / 2;
   }
+
+  PVector getBaseDirection(int myTeamId, Tank self) {
+    // 1. Identify which team we are looking for
+    Team team = (myTeamId == myTeam.id) ? myTeam : enemyTeam;
+
+    // 2. Safety check
+    if (team == null) return new PVector(0, 0);
+
+    // 3. Calculate the center of the base
+    float centerX = team.homebase_x + (team.homebase_width / 2f);
+    float centerY = team.homebase_y + (team.homebase_height / 2f);
+    PVector baseCenter = new PVector(centerX, centerY);
+
+    // 4. Calculate direction: (Target - Current)
+    PVector dir = PVector.sub(baseCenter, self.position());
+
+    // 5. Normalize so the vector length is 1 (useful for movement)
+    dir.normalize();
+
+    return dir;
+  }
 }

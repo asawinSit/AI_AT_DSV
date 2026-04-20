@@ -12,7 +12,7 @@ int height = 800;
 public final PVector tree1_pos = new PVector(230, 600);
 public final PVector tree2_pos = new PVector(280, 230);
 public final PVector tree3_pos = new PVector(530, 520);
-Tree[] allTrees   = new Tree[6];
+Tree[] allTrees   = new Tree[3];
 
 // Team0
 public final color team0Color = color(204, 50, 50);
@@ -92,8 +92,8 @@ void setup()
 
 
   activateTank(allTanks[0]);
-  activateTank(allTanks[1]);
-  activateTank(allTanks[2]);
+  //activateTank(allTanks[1]);
+  //activateTank(allTanks[2]);
 }
 
 void setupTanks()
@@ -132,9 +132,9 @@ void setupTrees()
   allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
   allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
   allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
-  allTrees[3] = new Tree((int)350, (int)400);
-  allTrees[4] = new Tree((int)620, (int)240);
-  allTrees[5] = new Tree((int)420, (int)190);
+  //allTrees[3] = new Tree((int)350, (int)400);
+  //allTrees[4] = new Tree((int)620, (int)240);
+  //allTrees[5] = new Tree((int)420, (int)190);
 }
 
 void markBaseType(Team team, NodeType type) {
@@ -181,6 +181,7 @@ void draw()
     updateTanksLogic();
 
     collisionManager.checkForCollisions();
+    collisionManager.checkBoundaryCollision();
   }
 
   // UPDATE DISPLAY

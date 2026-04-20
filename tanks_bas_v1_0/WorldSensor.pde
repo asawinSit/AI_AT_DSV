@@ -5,5 +5,7 @@ interface WorldSensor {
   boolean isMoreThanHalfInsideABase(int myTeamId, Tank self);
 
 
+  PVector getBaseDirection(int myTeamId, Tank self);
+
   boolean senseTank(Tank self, float fromX, float fromY, float heading, float rayLength, float rayWidth);
 }
