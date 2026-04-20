@@ -621,6 +621,13 @@ class Tank extends Sprite {
     popStyle();
   }
 
+  void displayKnownMap(){
+    for (Node n : knownMap.values()) {
+      fill(n.getColor());
+      ellipse(n.position.x, n.position.y, n.w, n.h);
+    }
+  }
+
   String getPositionKey(int column, int row) {
     return column + "," + row;
   }
