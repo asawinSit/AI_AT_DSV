@@ -7,5 +7,5 @@ interface WorldSensor {
 
   PVector getBaseDirection(int myTeamId, Tank self);
 
-  boolean senseTank(Tank self, float fromX, float fromY, float heading, float rayLength, float rayWidth);
+  //boolean senseTank(Tank self, float fromX, float fromY, float heading, float rayLength, float rayWidth);
 }

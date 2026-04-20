@@ -30,20 +30,20 @@ class WorldSensorImpl implements WorldSensor {
     return false;
   }
 
-  boolean senseTank(Tank self, float fromX, float fromY, float heading, float rayLength, float rayWidth) {
-    PVector rayDir = new PVector(cos(heading), sin(heading));
-
-    for (Tank t : allTanks) {
-      if (t == self) continue;
-
-      PVector toTank = new PVector(t.position.x - fromX, t.position.y - fromY);
-      float along = toTank.dot(rayDir);
-      if (along < 0 || along > rayLength + t.radius) continue;
-      float perp = abs(toTank.x * rayDir.y - toTank.y * rayDir.x);
-      if (perp < rayWidth * 0.5 + t.radius) return true;
-    }
-    return false;
-  }
+  /*   boolean senseTank(Tank self, float fromX, float fromY, float heading, float rayLength, float rayWidth) {
+   PVector rayDir = new PVector(cos(heading), sin(heading));
+   
+   for (Tank t : allTanks) {
+   if (t == self) continue;
+   
+   PVector toTank = new PVector(t.position.x - fromX, t.position.y - fromY);
+   float along = toTank.dot(rayDir);
+   if (along < 0 || along > rayLength + t.radius) continue;
+   float perp = abs(toTank.x * rayDir.y - toTank.y * rayDir.x);
+   if (perp < rayWidth * 0.5 + t.radius) return true;
+   }
+   return false;
+   } */
 
   boolean isMoreThanHalfInsideABase(int myTeamId, Tank self)
   {
@@ -79,21 +79,19 @@ class WorldSensorImpl implements WorldSensor {
   }
 
   PVector getBaseDirection(int myTeamId, Tank self) {
-    // 1. Identify which team we are looking for
-    Team team = (myTeamId == myTeam.id) ? myTeam : enemyTeam;
 
-    // 2. Safety check
+    Team team = (myTeamId == myTeam.id) ? myTeam : enemyTeam;
     if (team == null) return new PVector(0, 0);
 
-    // 3. Calculate the center of the base
+    //Calculate the center of the base
     float centerX = team.homebase_x + (team.homebase_width / 2f);
     float centerY = team.homebase_y + (team.homebase_height / 2f);
     PVector baseCenter = new PVector(centerX, centerY);
 
-    // 4. Calculate direction: (Target - Current)
+    //Calculate direction: (Target - Current)
     PVector dir = PVector.sub(baseCenter, self.position());
 
-    // 5. Normalize so the vector length is 1 (useful for movement)
+    //Normalize so the vector length is 1 (useful for movement)
     dir.normalize();
 
     return dir;

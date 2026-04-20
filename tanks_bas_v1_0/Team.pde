@@ -14,8 +14,6 @@ class Team {
 
   color team_color;
 
-  int numberOfHits; // sammalagda antalet bekräftade träffar på andra lagets tanks.
-
 
   Team (int team_id, int tank_size, color c,
     PVector tank0_startpos, int tank0_id,
@@ -28,8 +26,6 @@ class Team {
     this.tank0_startpos.set(tank0_startpos);
     this.tank1_startpos.set(tank1_startpos);
     this.tank2_startpos.set(tank2_startpos);
-
-    this.numberOfHits = 0;
 
     tanks[0] = new Tank(tank0_id, this, tank0_startpos, tank_size, c);
     tanks[1] = new Tank(tank1_id, this, tank1_startpos, tank_size, c);
@@ -53,10 +49,6 @@ class Team {
     return this.team_color;
   }
 
-  void messageSuccessfulHit() {
-    this.numberOfHits += 1;
-  }
-
   void updateLogic() {
 
     for (Tank tank : tanks) {
@@ -70,10 +62,6 @@ class Team {
     fill(this.team_color, 15);
     //rect(0, 0, 150, 350);
     rect(this.homebase_x, this.homebase_y, this.homebase_width, this.homebase_height);
-  }
-
-  void displayHomeBase() {
-    displayHomeBaseTeam();
   }
 
   void displayTanks() {

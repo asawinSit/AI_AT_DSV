@@ -39,7 +39,6 @@ class Tank extends Sprite {
 
   Node lastTargetNode;
   ArrayList<Node> path = new ArrayList<Node>();
-  PVector prevPosition; // Change to use lastNode.posiiton
 
   int reportWaitFrames = 0;
   static final int REPORT_WAIT_DURATION = 180; // 3 seconds at 60fps
@@ -52,7 +51,6 @@ class Tank extends Sprite {
     this.team         = team;
     this.startpos     = _startpos.copy();
     this.position     = _startpos.copy();
-    this.prevPosition = _startpos.copy();
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
     this.tankState = TankState.STOP;
@@ -135,7 +133,6 @@ class Tank extends Sprite {
     // Still travelling home
     if  ( currentNode.type != NodeType.HOME_BASE )
     {
-      //Node homeNode computePath();
       if (path.isEmpty())  computePathToNearestBase();
       followPath();
       return;
@@ -144,9 +141,7 @@ class Tank extends Sprite {
     {
       PVector dir = worldSensor.getBaseDirection(team.id, this);
 
-      // Scale it by your movement speed
       dir.mult(maxSpeed);
-
       velocity = dir;
       return;
     } else if (worldSensor.isMoreThanHalfInsideABase(team.id, this))
@@ -163,11 +158,6 @@ class Tank extends Sprite {
       path.clear();
       tankState = TankState.SEARCH;
     }
-
-
-
-
-    // Inside home base — stand still and count frames
   }
 
   void computePathToNearestBase() {
@@ -439,43 +429,32 @@ class Tank extends Sprite {
 
   void onCollisionDetected(Sprite hitObject) {
     if (active) {
-      // 1. Calculate the normal (vector pointing from hitObject center to this object)
+
       PVector normal = PVector.sub(this.position, hitObject.position);
       normal.normalize();
 
-      // 2. Reflection Formula: v = v - 2 * (v . n) * n
-      // This makes the sprite bounce realistically off the hitObject's "surface"
       float dotProduct = velocity.dot(normal);
 
       // Only bounce if moving TOWARD the object (prevents getting stuck inside)
       if (dotProduct < 0) {
         PVector reflection = PVector.mult(normal, 2 * dotProduct);
         velocity.sub(reflection);
-
-        // 3. Apply energy loss
-        //velocity.mult(1);
       }
 
-      // 4. Reset Pathfinding (Specific to your project)
       if (lastTargetNode != null) {
         lastTargetNode.exploredState = ExploredState.PENDING;
         path.clear();
       }
-
-      // 5. De-penetration: Push the object out so it doesn't overlap next frame
       position.add(PVector.mult(normal, 2));
     }
   }
 
   void onBoundaryCollisionDetected() {
-    // 1. Reverse the direction entirely
     velocity.mult(-1);
 
-    // 2. Apply energy loss (friction/restitution)
+    //energy loss
     velocity.mult(0.8);
 
-    // 3. De-penetration: Move it slightly away from the boundary
-    // to prevent getting stuck in a collision loop
     position.add(PVector.mult(velocity, 2));
   }
 
@@ -488,12 +467,12 @@ class Tank extends Sprite {
       );
   }
 
-  boolean tankInSight() {
-    return worldSensor.senseTank(this,
-      position.x, position.y,
-      this.velocity.heading(), rayLength, rayWidth
-      );
-  }
+  //boolean tankInSight() {
+  //  return worldSensor.senseTank(this,
+  //    position.x, position.y,
+  //    this.velocity.heading(), rayLength, rayWidth
+  //    );
+  //}
 
 
   void seek() {
@@ -511,9 +490,6 @@ class Tank extends Sprite {
 
 
   void updatePosition() {
-
-    this.prevPosition.set(this.position);
-
     this.velocity.add(this.acceleration);
     this.velocity.limit(this.maxSpeed);
     float turnAmount = 0.001;
@@ -569,13 +545,6 @@ class Tank extends Sprite {
     drawTank(0, 0);
     imageMode(CORNER);
     strokeWeight(1);
-    // display tank position
-
-    //fill(230);
-    //rect(0+25, 0-25, 100, 40);
-    //fill(30);
-    // textSize(15);
-    // text(this.name +"\n( " + this.position.x + ", " + this.position.y + " )", 25+5, -5-5);
 
     popMatrix();
   }
@@ -583,7 +552,6 @@ class Tank extends Sprite {
   void displaySightRay() {
     PVector rayDir  = new PVector(cos(this.velocity.heading()), sin(this.velocity.heading()));
     PVector perp    = new PVector(-sin(this.velocity.heading()), cos(this.velocity.heading()));
-
 
     // Ray tip
     float tipX = position.x + rayDir.x * rayLength;
@@ -630,7 +598,6 @@ class Tank extends Sprite {
   void displayPath() {
     if (path.isEmpty()) return;
     pushStyle();
-    //noStroke();
 
     // Draw all path nodes
     for (int i = 0; i < path.size(); i++) {
