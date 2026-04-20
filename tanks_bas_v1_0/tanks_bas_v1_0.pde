@@ -12,7 +12,7 @@ int height = 800;
 public final PVector tree1_pos = new PVector(230, 600);
 public final PVector tree2_pos = new PVector(280, 230);
 public final PVector tree3_pos = new PVector(530, 520);
-Tree[] allTrees   = new Tree[3];
+Tree[] allTrees   = new Tree[6];
 
 // Team0
 public final color team0Color = color(204, 50, 50);
@@ -45,6 +45,7 @@ CollisionManager collisionManager;
 Tank selectedTank;
 
 Tank[] allTanks = new Tank[6];
+ArrayList<Tank> activeTank = new ArrayList<Tank>();
 
 WorldSensorImpl sensor;
 
@@ -74,6 +75,7 @@ void setup()
   setupTanks();
 
   collisionManager = new CollisionManager();
+  sensor = new WorldSensorImpl(grid, allTanks, team0, team1);
 
   for (Tree t : allTrees)
   {
@@ -86,26 +88,34 @@ void setup()
     collisionManager.objects.add(t);
   }
 
-  selectedTank = allTanks[0];
-  allTanks[0].tankState = TankState.SEARCH;
-  allTanks[0].active = true;
+
+
+
+  activateTank(allTanks[0]);
+  activateTank(allTanks[1]);
+  activateTank(allTanks[2]);
 }
 
 void setupTanks()
 {
+
   allTanks[0] = team0.tanks[0];
   allTanks[1] = team0.tanks[1];
   allTanks[2] = team0.tanks[2];
   allTanks[3] = team1.tanks[0];
   allTanks[4] = team1.tanks[1];
   allTanks[5] = team1.tanks[2];
+}
 
-  sensor = new WorldSensorImpl(grid, allTanks, team0, team1);
-  allTanks[0].worldSensor = sensor;
-  allTanks[0].cellSize = grid.grid_size;
-
-  ArrayList<Node> homeNodes = buildBaseNodes(team0, NodeType.HOME_BASE);
-  allTanks[0].addHomeBase(homeNodes);
+void activateTank(Tank tank)
+{
+  ArrayList<Node> homeNodes = buildBaseNodes(tank.team, NodeType.HOME_BASE);
+  activeTank.add(tank);
+  tank.worldSensor = sensor;
+  tank.cellSize = grid.grid_size;
+  tank.addHomeBase(homeNodes);
+  tank.tankState = TankState.SEARCH;
+  tank.active = true;
 }
 
 void setupTeams()
@@ -122,9 +132,9 @@ void setupTrees()
   allTrees[0] = new Tree((int)tree1_pos.x, (int)tree1_pos.y);
   allTrees[1] = new Tree((int)tree2_pos.x, (int)tree2_pos.y);
   allTrees[2] = new Tree((int)tree3_pos.x, (int)tree3_pos.y);
-  //allTrees[3] = new Tree((int)350, (int)400);
-  //allTrees[4] = new Tree((int)620, (int)240);
-  //allTrees[5] = new Tree((int)420, (int)190);
+  allTrees[3] = new Tree((int)350, (int)400);
+  allTrees[4] = new Tree((int)620, (int)240);
+  allTrees[5] = new Tree((int)420, (int)190);
 }
 
 void markBaseType(Team team, NodeType type) {
@@ -222,13 +232,18 @@ void displayDebug()
   {
     // grid.display();
 
-    for (Node n : allTanks[0].knownMap.values()) {
-      fill(n.getColor());
-      ellipse(n.position.x, n.position.y, n.w, n.h);
+    for (Tank t : activeTank)
+    {
+      for (Node n : t.knownMap.values()) {
+        fill(n.getColor());
+        ellipse(n.position.x, n.position.y, n.w, n.h);
+      }
+
+      t.displaySightRay();
+      t.displayPath();
     }
 
-    allTanks[0].displaySightRay();
-    allTanks[0].displayPath();
+
     //for (Tank tank : allTanks){
     //  tank.displaySightRay();
     //}
@@ -296,14 +311,6 @@ void keyReleased() {
     debug = !debug;
   }
 
-  if (selectedTank == null) return; // Om ingen tank är vald, gör inget.
-
-  if (key == '0') {
-
-    selectedTank.targetNode =  grid.getRandomNode();
-    println( selectedTank.targetNode.row + " " + selectedTank.targetNode.col);
-    selectedTank.tankState = TankState.SEARCH;
-  }
 
   if (key == '1') {
     if (currentFrameRate < ORIGINAL_FRAME_RATE * 3) {

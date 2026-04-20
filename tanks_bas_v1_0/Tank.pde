@@ -81,7 +81,6 @@ class Tank extends Sprite {
 
   void update() {
     if (active != true) return;
-    if (this.tank_id != 1) return; // Endast tank0 i team0 uppdateras
 
     int col = worldToCol(position.x);
     int row = worldToRow(position.y);
