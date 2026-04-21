@@ -97,7 +97,6 @@ class Tank extends Sprite {
 
     switch (tankState) {
     case SEARCH:
-
       if (worldSensor.isMoreThanHalfInsideABase(69, this) && enemyInSight()) {
         path.clear();
         reportWaitFrames = 0;
@@ -164,6 +163,7 @@ class Tank extends Sprite {
     computePathTo(NodeType.HOME_BASE);
   }
 
+  // Dijkstra
   void computePathTo(NodeType goalType) {
     path.clear();
     if (currentNode == null) return;
@@ -193,8 +193,8 @@ class Tank extends Sprite {
       }
 
       for (Node nb : current.neighbors) {
-        if (!nb.isTraversable())                           continue;
-        if (nb.exploredState == ExploredState.UNEXPLORED)  continue;
+        if (!nb.isTraversable()) continue;
+        if (nb.exploredState == ExploredState.UNEXPLORED) continue;
 
         // Pixel distance from current node to this neighbour
         float stepCost = dist(current.position.x, current.position.y,
@@ -273,7 +273,7 @@ class Tank extends Sprite {
     HashMap<Node, Integer> dist = new HashMap<Node, Integer>();
 
     for (Node n : knownMap.values()) {
-      if (n.type == NodeType.HOME_BASE) { // Should be the base of the team so that enemies can use the same functionality
+      if (n.type == NodeType.HOME_BASE) {
         dist.put(n, 0);
         queue.add(n);
       }
@@ -295,59 +295,37 @@ class Tank extends Sprite {
   }
 
   Node selectFrontierNode() {
-    ArrayList<Node> touched = new ArrayList<Node>();
-    ArrayList<Node> queue = new ArrayList<Node>();
     ArrayList<Node> candidates = new ArrayList<Node>();
 
-
     for (Node n : knownMap.values()) {
-      if (!n.visited) {
-
-        touched.add(n);
-        queue.add(n);
-      }
+      if (!n.isTraversable()) continue;
+      if (n.exploredState != ExploredState.VISIBLE) continue;
+      candidates.add(n);
     }
 
-    while (!queue.isEmpty()) {
-      Node current = queue.remove(0);
-
-      for (Node nb : current.neighbors) {
-        if (nb.visited) continue;
-        nb.visited = true;
-        touched.add(nb);
-
-        if (!nb.isTraversable()) continue;
-        if (nb.exploredState == ExploredState.UNEXPLORED) continue;
-        if (nb.exploredState == ExploredState.VISITED) continue;
-        if (nb.exploredState == ExploredState.VISIBLE) {
-          candidates.add(nb);
-        }
-        queue.add(nb);
-      }
-    }
-
-    for (Node n : touched) n.visited = false;
     if (candidates.isEmpty()) return null;
 
     Node bestNode = null;
-    int bestScore = Integer.MAX_VALUE;
+    float bestScore = Float.MAX_VALUE;
+
     for (Node n : candidates) {
-      int score = 0;
-      if (n.type != NodeType.HOME_BASE) {
-        score = n.distanceFromBase * 150;
-      } else {
+      float score = 0;
+
+      if (n.type == NodeType.HOME_BASE) {
         score += 20000;
+      } else {
+        score += n.distanceFromBase * 150;
       }
+
       score += dist(position.x, position.y, n.position.x, n.position.y);
 
-      if (n.exploredState == ExploredState.PENDING) score += 5000;
+      if (n.exploredState == ExploredState.PENDING) score += 3000;
 
       if (score < bestScore) {
         bestScore = score;
-        bestNode = n;
+        bestNode  = n;
       }
     }
-
     return bestNode;
   }
 
@@ -356,18 +334,20 @@ class Tank extends Sprite {
     if (currentNode == null || goalNode == null) return;
 
     ArrayList<Node> touched = new ArrayList<Node>();
-    ArrayList<Node> queue = new ArrayList<Node>();
+    ArrayList<Node> queue   = new ArrayList<Node>();
 
+    currentNode.hCost   = 0;
     currentNode.visited = true;
-    currentNode.parent = null;
+    currentNode.parent  = null;
     touched.add(currentNode);
     queue.add(currentNode);
 
     boolean found = false;
 
     while (!queue.isEmpty()) {
-      queue.sort((a, b) -> Integer.compare(a.cost, b.cost));
+      queue.sort((a, b) -> Float.compare(a.hCost, b.hCost));
       Node current = queue.remove(0);
+
       if (current == goalNode) {
         found = true;
         break;
@@ -377,20 +357,23 @@ class Tank extends Sprite {
         if (nb.visited) continue;
         if (!nb.isTraversable()) continue;
 
+        float h = 0;
 
-        int cost = current.cost + 1;
+        if (nb.type == NodeType.HOME_BASE) {
+          h += 10000;
+        } else {
+          h -= nb.distanceFromBase * 150;
+        }
 
-        if (nb.isVisible()) cost -= 100;
-        if (nb == lastNode) cost += 5;
-        if (nb.type == NodeType.HOME_BASE) cost += 1000;
-        if (nb.exploredState == ExploredState.PENDING) cost += 10;
+        if (nb.exploredState == ExploredState.PENDING) h += 5000;
+        if (nb.exploredState == ExploredState.VISITED) h += 2000;
+        if (nb == lastNode) h += 500;
 
-        cost += nb.distanceFromBase;
-        cost += dist(position.x, position.y, nb.position.x, nb.position.y);
-        nb.cost = cost;
+        h += dist(position.x, position.y, nb.position.x, nb.position.y) * 150;
+
+        nb.hCost  = h;
         nb.parent = current;
         nb.visited = true;
-
         touched.add(nb);
         queue.add(nb);
       }
@@ -406,6 +389,7 @@ class Tank extends Sprite {
 
     for (Node n : touched) {
       n.visited = false;
+      n.parent  = null;
     }
   }
 
@@ -423,8 +407,6 @@ class Tank extends Sprite {
       targetNode = path.isEmpty() ? null : path.get(0);
     }
   }
-
-
 
   void onCollisionDetected(Sprite hitObject) {
     if (active) {
