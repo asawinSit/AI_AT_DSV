@@ -19,6 +19,7 @@ class Node {
 
   int distanceFromBase = Integer.MAX_VALUE;
   int cost;
+  float hCost;
 
   // Used in BFS
   Node parent;
