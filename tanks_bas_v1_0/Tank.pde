@@ -2,6 +2,10 @@ enum TankState {
   SEARCH, REPORT, STOP
 }
 
+enum Nav_Imp {
+  LRTA, DEFAULT
+}
+
 class Tank extends Sprite {
 
   // Physics
@@ -23,6 +27,8 @@ class Tank extends Sprite {
   // State
   TankState tankState;
 
+  Nav_Imp nav_Imp;
+
   // Sensor
   WorldSensor worldSensor;
   int cellSize; // Should the tank know this? Argument, tank team decision for accurate search.
@@ -31,13 +37,12 @@ class Tank extends Sprite {
 
   // own knowledge graph
   HashMap<String, Node> knownMap = new HashMap<String, Node>();
+  LRTA LRTA_Nav = new LRTA();
 
   // Navigation
   Node currentNode;
   Node lastNode;
   Node targetNode;
-
-  Node lastTargetNode;
   ArrayList<Node> path = new ArrayList<Node>();
 
   int reportWaitFrames = 0;
@@ -53,7 +58,8 @@ class Tank extends Sprite {
     this.position     = _startpos.copy();
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
-    this.tankState = TankState.STOP;
+
+    nav_Imp = Nav_Imp.DEFAULT;
 
     rayWidth   = radius /2;
   }
@@ -116,10 +122,18 @@ class Tank extends Sprite {
   }
 
   void search() {
+    Node nextNode = null;
+    if (nav_Imp == Nav_Imp.LRTA)
+    {
+      nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode);
+    } else
+    {
+      nextNode = selectFrontierNode();
+    }
     if (path.isEmpty()) {
-      Node frontier = selectFrontierNode();
-      if (frontier != null) {
-        computePath(frontier);
+
+      if (nextNode != null) {
+        computePath(nextNode);
       } else {
         println("No frontier found!");
         tankState = TankState.STOP;
@@ -395,14 +409,12 @@ class Tank extends Sprite {
 
   void followPath() {
     if (path.isEmpty()) return;
-    lastTargetNode = targetNode;
     targetNode = path.get(0);
 
     seek();
 
     if (isAtTarget()) {
       path.remove(0);
-      lastTargetNode = targetNode;
 
       targetNode = path.isEmpty() ? null : path.get(0);
     }
@@ -422,9 +434,17 @@ class Tank extends Sprite {
         velocity.sub(reflection);
       }
 
-      if (lastTargetNode != null) {
-        lastTargetNode.exploredState = ExploredState.PENDING;
-        path.clear();
+      if (targetNode != null && path.size() > 0) {
+
+        if (nav_Imp == Nav_Imp.LRTA)
+        {
+          println("Tank " + tank_id + " LRTA* learning: H(" + path.get(0).col + "," + path.get(0).row + ") = " + LRTA_Nav.H.get(path.get(0)));
+        }
+        path.get(0).exploredState = ExploredState.PENDING;
+        println(path.get(0).row + " :" + path.get(0).col +  "is" +path.get(0).exploredState );
+
+
+        path.clear(); // Replan
       }
       position.add(PVector.mult(normal, 2));
     }

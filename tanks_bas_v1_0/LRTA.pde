@@ -1,70 +1,19 @@
-class  LRTA
+public static class LRTA
 {
   // Real-time A* learning
   HashMap<Node, Float> H = new HashMap<>(); // Learned heuristic values
-  /**
-   * Get learned or estimated heuristic for a node (used by A* for base return)
-   */
-  float getHeuristic(Tank self, Node n) {
-    if (H.containsKey(n)) {
-      return H.get(n); // Use learned value from LRTA*
-    }
-
-    // Initialize with estimate based on distance to base
-    if (n.type == NodeType.HOME_BASE) {
-      return 0.0;
-    }
-    return n.distanceFromBase * self.cellSize; // Grid distance estimate
-  }
-
-  /**
-   * Update heuristic values based on actual path cost (LEARNING)
-   */
-  void updateHeuristic(Tank self, HashMap<Node, Float> gScore, Node goalNode) {
-    float actualCostToGoal = gScore.get(goalNode);
-
-    // Update heuristic for all nodes in gScore
-    for (Node n : gScore.keySet()) {
-      float actualRemainingCost = actualCostToGoal - gScore.get(n);
-      float currentH = getHeuristic(self, n);
-
-      // Learning rate weighted update
-      float learningRate = 0.3;
-      float newH = currentH * (1 - learningRate) + actualRemainingCost * learningRate;
-      H.put(n, newH);
-    }
-  }
-
-  Node getLowestFScore(ArrayList<Node> openSet, HashMap<Node, Float> fScore) {
-    Node best = openSet.get(0);
-    float bestScore = fScore.getOrDefault(best, Float.MAX_VALUE);
-
-    for (Node n : openSet) {
-      float score = fScore.getOrDefault(n, Float.MAX_VALUE);
-      if (score < bestScore) {
-        bestScore = score;
-        best = n;
-      }
-    }
-    return best;
-  }
-
-  void reconstructPath(Tank self, HashMap<Node, Node> cameFrom, Node current) {
-    self.path.clear();
-    while (cameFrom.containsKey(current)) {
-      self.path.add(0, current);
-      current = cameFrom.get(current);
-    }
-  }
 
   // ==================== LRTA* ALGORITHM ====================
-
   /**
    * LRTA* (Learning Real-Time A*) - Single step lookahead with learning
    * Only considers immediate neighbors, not full path planning
    */
-  Node LRTA_step(Tank self, Node current) {
-    if (current == null) return null;
+  public Node LRTA_step(Tank self, Node current) {
+    if (current == null)
+    {
+      println("LRTA*:" + " current == null" );
+      return null;
+    }
 
     // Initialize heuristic if first time seeing this node
     if (!H.containsKey(current)) {
@@ -77,7 +26,7 @@ class  LRTA
     // 1. LOOKAHEAD: Evaluate all traversable neighbors
     for (Node neighbor : current.neighbors) {
       if (!neighbor.isTraversable()) continue;
-      if (neighbor.exploredState == ExploredState.UNEXPLORED) {
+      if (neighbor.exploredState == ExploredState.VISITED) {
         if (!self.knownMap.containsValue(neighbor)) continue;
       }
 
@@ -103,7 +52,7 @@ class  LRTA
     float minCost = Float.MAX_VALUE;
     for (Node neighbor : current.neighbors) {
       if (!neighbor.isTraversable()) continue;
-      if (neighbor.exploredState == ExploredState.UNEXPLORED) {
+      if (neighbor.exploredState == ExploredState.VISITED) {
         if (!self.knownMap.containsValue(neighbor)) continue;
       }
 
@@ -128,16 +77,21 @@ class  LRTA
    */
   float estimateHeuristic(Node n) {
     // Heuristic for exploration task
+    float heuristicCost = 0;
     if (n.type == NodeType.ENEMY_BASE) {
-      return 0.0; // Goal state
+      heuristicCost += 0.0; // Goal state
+    } else if (n.type == NodeType.HOME_BASE) {
+      heuristicCost += 200.0; // Encourage exploration
     } else if (n.exploredState == ExploredState.UNEXPLORED) {
-      return 10.0; // Encourage exploration
+      heuristicCost += 10.0; // Encourage exploration
     } else if (n.exploredState == ExploredState.VISIBLE) {
-      return 20.0; // Slightly less attractive
+      heuristicCost += 20.0; // Slightly less attractive
+    } else if (n.exploredState == ExploredState.PENDING) {
+      heuristicCost += 70.0; // Slightly less attractive
     } else if (n.exploredState == ExploredState.VISITED) {
-      return 50.0; // Discourage revisiting
+      heuristicCost += 100.0; // Discourage revisiting
     }
-    return 30.0;
+    return heuristicCost;
   }
 
   float cost(Node a, Node b) {
