@@ -2,6 +2,7 @@ enum NodeType {
   OBSTACLE, HOME_BASE, ENEMY_BASE, EMPTY
 }
 
+
 enum ExploredState {
   UNEXPLORED, VISITED, VISIBLE, PENDING
 }
@@ -69,5 +70,19 @@ class Node {
     default:
       return color(0);
     }
+  }
+
+  @Override
+    public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null || getClass() != obj.getClass()) return false;
+
+    Node other = (Node) obj;
+    return this.row == other.row && this.col == other.col;
+  }
+
+  @Override
+    public int hashCode() {
+    return 31 * row + col;
   }
 }

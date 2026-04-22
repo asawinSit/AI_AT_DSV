@@ -43,6 +43,7 @@ class Tank extends Sprite {
   Node currentNode;
   Node lastNode;
   Node targetNode;
+  Node goalNode;
   ArrayList<Node> path = new ArrayList<Node>();
 
   int reportWaitFrames = 0;
@@ -73,12 +74,9 @@ class Tank extends Sprite {
         knownMap.put(key, n);
       }
     }
-
     for (Node n : homeBase) wireNeighbours(n);
-
     currentNode = nearestKnownNode(position);
     lastNode = currentNode;
-
     currentNode.exploredState = ExploredState.VISITED;
     perceiveNeighbours();
   }
@@ -146,7 +144,28 @@ class Tank extends Sprite {
     // Still travelling home
     if  ( currentNode.type != NodeType.HOME_BASE )
     {
-      if (path.isEmpty())  computePathToNearestBase();
+
+      if (goalNode == null)
+      {
+        goalNode = getNearestBaseNode();
+      }
+
+      if (path.isEmpty())
+        if (nav_Imp == Nav_Imp.LRTA)
+        {
+          Node nextNode = null;
+          println("goalNode is " + goalNode.row + " " + goalNode.col);
+          nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode);
+          if (nextNode != null) {
+            computePath(nextNode);
+          } else {
+            println("No goalNode found!");
+            tankState = TankState.STOP;
+          }
+        } else
+        {
+          computePathToNearestBase();
+        }
       followPath();
       return;
     }
@@ -169,40 +188,52 @@ class Tank extends Sprite {
       println("Report Completed");
       reportWaitFrames = 0;
       path.clear();
+      goalNode = null;
       tankState = TankState.SEARCH;
     }
   }
 
   void computePathToNearestBase() {
-    computePathTo(NodeType.HOME_BASE);
+    Node nearestBase = getNearestBaseNode();
+    if (nearestBase != null) {
+      computePathToNode(nearestBase);
+    } else {
+      path.clear();
+    }
   }
 
-  // Dijkstra
-  void computePathTo(NodeType goalType) {
-    path.clear();
-    if (currentNode == null) return;
+  Node getNearestBaseNode() {
+    return getNearestNodeOfType(NodeType.HOME_BASE);
+  }
 
-    // Use a map to track the best known pixel-distance cost to each node
+  Node getNearestNodeOfType(NodeType goalType) {
+    if (currentNode == null) return null;
+
     HashMap<Node, Float> costSoFar = new HashMap<Node, Float>();
     ArrayList<Node> touched = new ArrayList<Node>();
-    ArrayList<Node> queue   = new ArrayList<Node>();
+    ArrayList<Node> queue = new ArrayList<Node>();
 
-    currentNode.parent  = null;
-    costSoFar.put(currentNode, 0.0);
+    currentNode.parent = null;
+    costSoFar.put(currentNode, 0.0f);
     touched.add(currentNode);
     queue.add(currentNode);
 
-    boolean found = false;
-    Node    goal  = null;
+    Node nearestGoal = null;
+    float nearestCost = Float.MAX_VALUE;
 
     while (!queue.isEmpty()) {
-      // Sort by accumulated pixel distance — lowest cost first (Dijkstra)
+      // Sort by accumulated cost — lowest first (Dijkstra)
       queue.sort((a, b) -> Float.compare(costSoFar.get(a), costSoFar.get(b)));
       Node current = queue.remove(0);
 
+      // Check if this is a goal node (but not our starting position)
       if (current.type == goalType && current != currentNode) {
-        found = true;
-        goal  = current;
+        float currentCost = costSoFar.get(current);
+        if (currentCost < nearestCost) {
+          nearestCost = currentCost;
+          nearestGoal = current;
+        }
+        // Early exit if we found a goal (first one is nearest due to Dijkstra)
         break;
       }
 
@@ -210,12 +241,10 @@ class Tank extends Sprite {
         if (!nb.isTraversable()) continue;
         if (nb.exploredState == ExploredState.UNEXPLORED) continue;
 
-        // Pixel distance from current node to this neighbour
         float stepCost = dist(current.position.x, current.position.y,
           nb.position.x, nb.position.y);
-        float newCost  = costSoFar.get(current) + stepCost;
+        float newCost = costSoFar.get(current) + stepCost;
 
-        // Only add/update if we found a cheaper path to this neighbour
         if (!costSoFar.containsKey(nb) || newCost < costSoFar.get(nb)) {
           costSoFar.put(nb, newCost);
           nb.parent = current;
@@ -227,16 +256,83 @@ class Tank extends Sprite {
       }
     }
 
+    // Clean up parent references
+    for (Node n : touched) {
+      n.parent = null;
+    }
+
+    return nearestGoal;
+  }
+
+  // Compute path to a specific target node
+  void computePathToNode(Node targetNode) {
+    path.clear();
+    if (currentNode == null || targetNode == null) return;
+
+    HashMap<Node, Float> costSoFar = new HashMap<Node, Float>();
+    ArrayList<Node> touched = new ArrayList<Node>();
+    ArrayList<Node> queue = new ArrayList<Node>();
+
+    currentNode.parent = null;
+    costSoFar.put(currentNode, 0.0f);
+    touched.add(currentNode);
+    queue.add(currentNode);
+
+    boolean found = false;
+
+    while (!queue.isEmpty()) {
+      // Sort by accumulated cost — lowest first (Dijkstra)
+      queue.sort((a, b) -> Float.compare(costSoFar.get(a), costSoFar.get(b)));
+      Node current = queue.remove(0);
+
+      // Check if we reached the target
+      if (current == targetNode) {
+        found = true;
+        goalNode = targetNode;
+        break;
+      }
+
+      for (Node nb : current.neighbors) {
+        if (!nb.isTraversable()) continue;
+        if (nb.exploredState == ExploredState.UNEXPLORED) continue;
+
+        float stepCost = dist(current.position.x, current.position.y,
+          nb.position.x, nb.position.y);
+        float newCost = costSoFar.get(current) + stepCost;
+
+        if (!costSoFar.containsKey(nb) || newCost < costSoFar.get(nb)) {
+          costSoFar.put(nb, newCost);
+          nb.parent = current;
+          if (!touched.contains(nb)) {
+            touched.add(nb);
+            queue.add(nb);
+          }
+        }
+      }
+    }
+
+    // Reconstruct path if target was found
     if (found) {
-      Node step = goal;
+      Node step = targetNode;
       while (step != null && step != currentNode) {
         path.add(0, step);
         step = step.parent;
       }
     }
 
+    // Clean up parent references
     for (Node n : touched) {
       n.parent = null;
+    }
+  }
+
+  // Legacy method for backward compatibility
+  void computePathTo(NodeType goalType) {
+    Node targetNode = getNearestNodeOfType(goalType);
+    if (targetNode != null) {
+      computePathToNode(targetNode);
+    } else {
+      path.clear();
     }
   }
 
@@ -436,13 +532,12 @@ class Tank extends Sprite {
 
       if (targetNode != null && path.size() > 0) {
 
+        path.get(0).exploredState = ExploredState.PENDING;
+
         if (nav_Imp == Nav_Imp.LRTA)
         {
-          println("Tank " + tank_id + " LRTA* learning: H(" + path.get(0).col + "," + path.get(0).row + ") = " + LRTA_Nav.H.get(path.get(0)));
+          LRTA_Nav.reportCollision(path.get(0));
         }
-        path.get(0).exploredState = ExploredState.PENDING;
-        println(path.get(0).row + " :" + path.get(0).col +  "is" +path.get(0).exploredState );
-
 
         path.clear(); // Replan
       }

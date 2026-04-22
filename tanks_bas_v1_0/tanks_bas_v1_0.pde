@@ -34,7 +34,7 @@ Team team1;
 
 Tree[] allTrees = new Tree[3];
 Tank[] allTanks = new Tank[6];
-ArrayList<Tank> activeTank = new ArrayList<Tank>();
+ArrayList<Tank> activeTanks = new ArrayList<Tank>();
 
 int currentFrameRate = ORIGINAL_FRAME_RATE;
 
@@ -88,7 +88,7 @@ void activateTank(Tank tank) {
 
   tank.tankState = TankState.SEARCH;
   tank.active = true;
-  activeTank.add(tank);
+  activeTanks.add(tank);
 }
 
 void addCollision() {
@@ -99,6 +99,11 @@ void addCollision() {
 
   for (Tank t : allTanks) {
     collisionManager.objects.add(t);
+    //temp collision fix
+    if (!activeTanks.contains(t))
+    {
+      grid.markObstacle(t.position, t.radius, 1);
+    }
   }
 }
 
@@ -146,7 +151,7 @@ ArrayList<Node> buildBaseNodes(Team team, NodeType type) {
         float px = c * GRID_CELL_SIZE + GRID_CELL_SIZE;
         float py = r * GRID_CELL_SIZE + GRID_CELL_SIZE;
         Node n = new Node(c, r, px, py);
-        n.type = type;
+        if ( n.type != NodeType.OBSTACLE) n.type = type;
         baseNodes.add(n);
       }
     }
@@ -211,7 +216,7 @@ void displayGUI() {
 
 void displayDebug() {
   if (debug) {
-    for (Tank t : activeTank) {
+    for (Tank t : activeTanks) {
       t.displayKnownMap();
       t.displayPath();
       t.displaySightRay();
@@ -234,7 +239,7 @@ void keyReleased() {
 
 
   if (key == 'a') {
-    for (Tank t : activeTank)
+    for (Tank t : activeTanks)
     {
       println("t.nav_Imp : " + t.nav_Imp );
       t.nav_Imp = t.nav_Imp == Nav_Imp.DEFAULT ?  Nav_Imp.LRTA : Nav_Imp.DEFAULT;
