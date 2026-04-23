@@ -1,38 +1,36 @@
 public class LRTA
 {
   HashMap<Node, Float> H = new HashMap<>(); // Learned heuristic values
-  float collisionPenalty = 20.0f;
+  float collisionPenalty = 500.0f;
 
-  public Node LRTA_step(Tank self, Node current) {
+  public Node LRTA_step(Tank self, Node current, boolean isExploring) {
     if (current == null) {
       println("LRTA*: current == null");
       return null;
     }
 
-    // Initialize heuristic if first time seeing this node
+    // Use different heuristic initialization based on mode
+    Node target = isExploring ? null : self.goalNode;
+
     if (!H.containsKey(current)) {
-      H.put(current, estimateHeuristic(current, self.goalNode)); // Pass target when go back to base
+      H.put(current, estimateHeuristic(current, target));
     }
 
     Node bestNeighbor = null;
     float bestCost = Float.MAX_VALUE;
 
-    // Evaluate all traversable neighbors
     for (Node neighbor : current.neighbors) {
-      // Skip non-traversable nodes
       if (!neighbor.isTraversable()) continue;
 
-      // Skip visited nodes that aren't in the known map
-      if (neighbor.exploredState == ExploredState.VISITED) {
+      // When returning to base, DON'T skip visited nodes
+      if (isExploring && neighbor.exploredState == ExploredState.VISITED) {
         if (!self.knownMap.containsValue(neighbor)) continue;
       }
 
-      // Initialize neighbor's heuristic if not already
       if (!H.containsKey(neighbor)) {
-        H.put(neighbor, estimateHeuristic(neighbor, self.goalNode)); // Pass target
+        H.put(neighbor, estimateHeuristic(neighbor, target));
       }
 
-      // Calculate cost estimate to goal
       float stepCost = cost(current, neighbor);
       float estimatedTotalCost = stepCost + H.get(neighbor);
 
@@ -44,33 +42,29 @@ public class LRTA
 
     if (bestNeighbor == null) return current;
 
-    // Update current node's heuristic based on the best neighbor found
-    updateHeuristic(self, current);
-    //println("Tank " + self.tank_id + " LRTA* learning: H(" + current.col + "," + current.row + ") = " + H.get(current));
-
+    updateHeuristic(self, current, target);
     return bestNeighbor;
   }
 
-  void updateHeuristic(Tank self, Node n) {
+  void updateHeuristic(Tank self, Node n, Node target) {
     float minCost = Float.MAX_VALUE;
+    boolean isExploring = (target == null);
 
     for (Node neighbor : n.neighbors) {
       if (!neighbor.isTraversable()) continue;
 
-      // Skip visited nodes that aren't in the known map
-      if (neighbor.exploredState == ExploredState.VISITED) {
+      if (isExploring && neighbor.exploredState == ExploredState.VISITED) {
         if (!self.knownMap.containsValue(neighbor)) continue;
       }
 
       float stepCost = cost(n, neighbor);
-      float totalCost = stepCost + H.getOrDefault(neighbor, estimateHeuristic(neighbor, self.goalNode)); // Pass target
+      float totalCost = stepCost + H.getOrDefault(neighbor, estimateHeuristic(neighbor, target));
 
       if (totalCost < minCost) {
         minCost = totalCost;
       }
     }
 
-    // Only update if we found a valid neighbor
     if (minCost != Float.MAX_VALUE) {
       H.put(n, minCost);
     }
@@ -80,31 +74,25 @@ public class LRTA
     // If node is not traversable, return max cost
     if (!n.isTraversable()) return Float.MAX_VALUE;
 
-    // If we don't have a target, use exploration-based heuristic
-    if (target == null) {
-      if (n.exploredState == ExploredState.VISITED) return 5.0f;
-      if (n.exploredState == ExploredState.PENDING) return 2.0f;
-      return 0.0f;
+    // If we have a target (e.g., going to base), always use Manhattan distance
+    if (target != null) {
+      return (float)(Math.abs(n.col - target.col) + Math.abs(n.row - target.row));
     }
 
-    return (float)(Math.abs(n.col - target.col) + Math.abs(n.row - target.row)) * 100;
+    // Only use exploration-based heuristic when exploring (target == null)
+    if (n.exploredState == ExploredState.VISITED) return 100.0f;
+    if (n.exploredState == ExploredState.PENDING) return 150.0f;
+    return 0.0f; // Unexplored nodes are most attractive when exploring
   }
 
   float cost(Node a, Node b) {
-    return dist(a.position.x, a.position.y, b.position.x, b.position.y);
+
+    return  dist(a.position.x, a.position.y, b.position.x, b.position.y);
   }
 
-  void reportCollision(Node badNode) {
+  void handleCollision(Node badNode) {
     float currentH = H.getOrDefault(badNode, estimateHeuristic(badNode, null));
     H.put(badNode, currentH + collisionPenalty);
-    println("Collision reported at node (" + badNode.col + "," + badNode.row + "), H increased to " + H.get(badNode));
-  }
-
-  void handleCollision(Tank self, Node badNode) {
-    // Penalize the collided node
-    reportCollision(badNode);
-
-    // Update the heuristic of the current node (where the tank is)
-    updateHeuristic(self, self.currentNode);
+    println("Collision reported on the way to node (" + badNode.col + "," + badNode.row + "), H increased to " + H.get(badNode));
   }
 }

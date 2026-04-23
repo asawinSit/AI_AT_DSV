@@ -241,9 +241,8 @@ void keyReleased() {
   if (key == 'a') {
     for (Tank t : activeTanks)
     {
-      println("t.nav_Imp : " + t.nav_Imp );
       t.nav_Imp = t.nav_Imp == Nav_Imp.DEFAULT ?  Nav_Imp.LRTA : Nav_Imp.DEFAULT;
-      println("t.nav_Imp : " + t.nav_Imp );
+      println("tank navigation implementation: " + t.nav_Imp );
     }
   }
 

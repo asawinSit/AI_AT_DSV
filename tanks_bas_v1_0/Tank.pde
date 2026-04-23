@@ -123,7 +123,7 @@ class Tank extends Sprite {
     Node nextNode = null;
     if (nav_Imp == Nav_Imp.LRTA)
     {
-      nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode);
+      nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode, true);
     } else
     {
       nextNode = selectFrontierNode();
@@ -151,21 +151,22 @@ class Tank extends Sprite {
       }
 
       if (path.isEmpty())
-        if (nav_Imp == Nav_Imp.LRTA)
-        {
-          Node nextNode = null;
-          println("goalNode is " + goalNode.row + " " + goalNode.col);
-          nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode);
-          if (nextNode != null) {
-            computePath(nextNode);
-          } else {
-            println("No goalNode found!");
-            tankState = TankState.STOP;
-          }
-        } else
-        {
-          computePathToNearestBase();
-        }
+        /*  if (nav_Imp == Nav_Imp.LRTA)
+         {
+         Node nextNode = null;
+         println("goalNode is " + goalNode.row + " " + goalNode.col);
+         nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode, false);
+         if (nextNode != null) {
+         computePath(nextNode);
+         } else {
+         println("No goalNode found!");
+         tankState = TankState.STOP;
+         }
+         } else
+         {
+         
+         } */
+        computePathToNearestBase();
       followPath();
       return;
     }
@@ -233,7 +234,7 @@ class Tank extends Sprite {
           nearestCost = currentCost;
           nearestGoal = current;
         }
-        // Early exit if we found a goal (first one is nearest due to Dijkstra)
+
         break;
       }
 
@@ -264,7 +265,6 @@ class Tank extends Sprite {
     return nearestGoal;
   }
 
-  // Compute path to a specific target node
   void computePathToNode(Node targetNode) {
     path.clear();
     if (currentNode == null || targetNode == null) return;
@@ -326,7 +326,6 @@ class Tank extends Sprite {
     }
   }
 
-  // Legacy method for backward compatibility
   void computePathTo(NodeType goalType) {
     Node targetNode = getNearestNodeOfType(goalType);
     if (targetNode != null) {
@@ -532,11 +531,14 @@ class Tank extends Sprite {
 
       if (targetNode != null && path.size() > 0) {
 
-        path.get(0).exploredState = ExploredState.PENDING;
 
         if (nav_Imp == Nav_Imp.LRTA)
         {
-          LRTA_Nav.reportCollision(path.get(0));
+          path.get(0).exploredState = ExploredState.VISITED;
+          LRTA_Nav.handleCollision(path.get(0));
+        } else
+        {
+          path.get(0).exploredState = ExploredState.PENDING;
         }
 
         path.clear(); // Replan

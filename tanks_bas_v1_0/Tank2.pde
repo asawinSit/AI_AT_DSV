@@ -38,7 +38,7 @@ class Tank2 extends Tank {
 
   void search() {
     // LRTA*: Make a single-step decision based on local information
-    Node nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode);
+    Node nextNode = LRTA_Nav.LRTA_step((Tank)this, currentNode, false);
 
 
     if (nextNode != null && nextNode != currentNode) {
