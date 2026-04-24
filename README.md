@@ -20,5 +20,6 @@ För att köra detta måste man ha **Processing** nerladdat.
 
 ### Utvecklare
 
-Asawin Sitthi /ln
+Asawin Sitthi 
+
 Chris Pilegård
