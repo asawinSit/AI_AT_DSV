@@ -4,6 +4,7 @@
 
 Asawin Sitthi
 Chris Pilegård
+
 Bachelor's degree project in Computer Game Development at the Department of Computer and Systems Sciences, Stockholm University.
 
 This project implements a physically based modal sound synthesis pipeline within Unreal Engine 5.7. It includes an offline FEM-based modal analysis tool and a real-time MetaSound synthesis system for impact and sliding audio.
