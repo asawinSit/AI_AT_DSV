@@ -23,5 +23,4 @@ För att köra detta måste man ha **Processing** nedladdat.
 Grupp 3
 
 Asawin Sitthi
-
 Chris Pilegård
