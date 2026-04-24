@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 class WorldSensorImpl implements WorldSensor {
   Grid grid;
   Tank[] allTanks = new Tank[6];

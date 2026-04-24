@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 class Team {
 
   Tank[] tanks = new Tank[3];

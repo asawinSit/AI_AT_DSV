@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 class Grid {
   int cols, rows;
   int grid_size;

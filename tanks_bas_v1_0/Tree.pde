@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 class Tree extends Sprite {
 
   static final float COLLISION_RADIUS = 165/2;

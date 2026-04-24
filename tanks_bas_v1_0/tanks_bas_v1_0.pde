@@ -1,4 +1,5 @@
-
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 static final int WINDOW_WIDTH = 800;
 static final int WINDOW_HEIGHT = 800;
 static final int ORIGINAL_FRAME_RATE = 60;

@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 enum NodeType {
   OBSTACLE, HOME_BASE, ENEMY_BASE, EMPTY
 }

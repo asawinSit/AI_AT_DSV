@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 class CollisionManager {
   ArrayList<Sprite> objects = new ArrayList<Sprite>();
 

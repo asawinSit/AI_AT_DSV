@@ -1,3 +1,5 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
 public class LRTA
 {
   HashMap<Node, Float> H = new HashMap<>(); // Learned heuristic values
@@ -10,7 +12,6 @@ public class LRTA
       return null;
     }
 
-    // Use different heuristic initialization based on mode
     Node target = isExploring ? null : self.goalNode;
 
     if (!H.containsKey(current)) {
@@ -23,7 +24,6 @@ public class LRTA
     for (Node neighbor : current.neighbors) {
       if (!neighbor.isTraversable()) continue;
 
-      // When returning to base, DON'T skip visited nodes
       if (isExploring && neighbor.exploredState == ExploredState.VISITED) {
         if (!self.knownMap.containsValue(neighbor)) continue;
       }
@@ -75,12 +75,11 @@ public class LRTA
     // If node is not traversable, return max cost
     if (!n.isTraversable()) return Float.MAX_VALUE;
 
-    // If we have a target (e.g., going to base), always use Manhattan distance
+    // If we have a target use Manhattan distance
     if (target != null) {
       return (float)(Math.abs(n.col - target.col) + Math.abs(n.row - target.row));
     }
 
-    // Only use exploration-based heuristic when exploring (target == null)
     if (n.exploredState == ExploredState.VISITED) return 2.0f;
     // if (n.exploredState == ExploredState.PENDING) return 3.0f;
     return 0.0f; // Unexplored nodes are most attractive when exploring
