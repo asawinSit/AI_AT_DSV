@@ -99,11 +99,6 @@ void addCollision() {
 
   for (Tank t : allTanks) {
     collisionManager.objects.add(t);
-    //temp collision fix
-    if (!activeTanks.contains(t))
-    {
-      grid.markObstacle(t.position, t.radius, 1);
-    }
   }
 }
 

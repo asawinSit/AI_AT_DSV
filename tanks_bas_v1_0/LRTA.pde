@@ -1,7 +1,8 @@
 public class LRTA
 {
   HashMap<Node, Float> H = new HashMap<>(); // Learned heuristic values
-  float collisionPenalty = 500.0f;
+  float collisionPenalty = 10.0f;
+
 
   public Node LRTA_step(Tank self, Node current, boolean isExploring) {
     if (current == null) {
@@ -31,7 +32,7 @@ public class LRTA
         H.put(neighbor, estimateHeuristic(neighbor, target));
       }
 
-      float stepCost = cost(current, neighbor);
+      float stepCost = cost(self, current, neighbor);
       float estimatedTotalCost = stepCost + H.get(neighbor);
 
       if (estimatedTotalCost < bestCost) {
@@ -57,7 +58,7 @@ public class LRTA
         if (!self.knownMap.containsValue(neighbor)) continue;
       }
 
-      float stepCost = cost(n, neighbor);
+      float stepCost = cost(self, n, neighbor);
       float totalCost = stepCost + H.getOrDefault(neighbor, estimateHeuristic(neighbor, target));
 
       if (totalCost < minCost) {
@@ -80,14 +81,14 @@ public class LRTA
     }
 
     // Only use exploration-based heuristic when exploring (target == null)
-    if (n.exploredState == ExploredState.VISITED) return 100.0f;
-    if (n.exploredState == ExploredState.PENDING) return 150.0f;
+    if (n.exploredState == ExploredState.VISITED) return 2.0f;
+    // if (n.exploredState == ExploredState.PENDING) return 3.0f;
     return 0.0f; // Unexplored nodes are most attractive when exploring
   }
 
-  float cost(Node a, Node b) {
+  float cost(Tank self, Node a, Node b) {
 
-    return  dist(a.position.x, a.position.y, b.position.x, b.position.y);
+    return  dist(a.position.x, a.position.y, b.position.x, b.position.y) / self.cellSize;
   }
 
   void handleCollision(Node badNode) {
