@@ -6,6 +6,13 @@
 
 För att köra detta måste man ha **Processing** nedladdat.
 
+Inga utomstående programbibliotek behövs.
+
+## Avändning
+
+1. Öppna projektet i **Processing**
+2. Klicka på `run`
+
 ## Kontroller
 
 | Input | Handling                            |
