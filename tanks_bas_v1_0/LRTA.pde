@@ -35,7 +35,7 @@ public class LRTA
     }
 
     Node bestNeighbor = null;
-    float bestCost = Float.MAX_VALUE;
+    float minCost = Float.MAX_VALUE;
 
     for (Node neighbor : current.neighbors) {
       if (!neighbor.isTraversable()) continue;
@@ -45,51 +45,21 @@ public class LRTA
       }
 
       float stepCost = cost(self, current, neighbor);
-      float estimatedTotalCost = stepCost + H.get(neighbor);
+      float totalCost = stepCost + H.get(neighbor);
 
-      if (estimatedTotalCost < bestCost) {
-        bestCost = estimatedTotalCost;
+      if (totalCost < minCost) {
+        minCost = totalCost;
         bestNeighbor = neighbor;
       }
     }
 
     if (bestNeighbor == null) return current;
 
-    updateHeuristic(self, current, target);
-    return bestNeighbor;
-  }
-
-
-  /**  Update the heuristic value for a node based on observed costs
-   *
-   * The heuristic for node n is updated to be the minimum of:
-   * (cost to reach neighbor + neighbor's heuristic) across all neighbors
-   *
-   * @param self - The tank agent
-   * @param n - The node whose heuristic should be updated
-   * @param target - The goal node (or null if exploring)
-   */
-  void updateHeuristic(Tank self, Node n, Node target) {
-    float minCost = Float.MAX_VALUE;
-
-    for (Node neighbor : n.neighbors) {
-      if (!neighbor.isTraversable()) continue;
-
-      if (!H.containsKey(neighbor)) {
-        H.put(neighbor, estimateHeuristic(neighbor, target));
-      }
-
-      float stepCost = cost(self, n, neighbor);
-      float totalCost = stepCost + H.get(neighbor);
-
-      if (totalCost < minCost) {
-        minCost = totalCost;
-      }
-    }
-
     if (minCost != Float.MAX_VALUE) {
-      H.put(n, minCost);
+      H.put(current, minCost);
     }
+
+    return bestNeighbor;
   }
 
   /**  Estimate the heuristic value for a node
@@ -102,7 +72,7 @@ public class LRTA
    * @return Estimated cost-to-goal (lower is better)
    */
   float estimateHeuristic(Node n, Node target) {
-    if (!n.isTraversable()) return Float.MAX_VALUE;
+    if (!n.isTraversable()) return 10000;
 
     if (target != null) {
       return (float)(Math.abs(n.col - target.col) + Math.abs(n.row - target.row));
