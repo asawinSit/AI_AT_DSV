@@ -72,8 +72,6 @@ public class LRTA
    * @return Estimated cost-to-goal (lower is better)
    */
   float estimateHeuristic(Node n, Node target) {
-    if (!n.isTraversable()) return 10000;
-
     if (target != null) {
       return (float)(Math.abs(n.col - target.col) + Math.abs(n.row - target.row));
     }
