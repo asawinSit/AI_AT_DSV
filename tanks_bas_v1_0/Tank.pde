@@ -1,5 +1,6 @@
 //Asawin Sitthi assi7068
 //Chris Pilegård chpi8651
+
 enum TankState {
   SEARCH, REPORT, STOP
 }
@@ -225,11 +226,10 @@ class Tank extends Sprite {
     float nearestCost = Float.MAX_VALUE;
 
     while (!queue.isEmpty()) {
-      // Sort by accumulated cost — lowest first (Dijkstra)
+      // Sort by accumulated cost, lowest first (Dijkstra)
       queue.sort((a, b) -> Float.compare(costSoFar.get(a), costSoFar.get(b)));
       Node current = queue.remove(0);
 
-      // Check if this is a goal node (but not our starting position)
       if (current.type == goalType && current != currentNode) {
         float currentCost = costSoFar.get(current);
         if (currentCost < nearestCost) {
@@ -259,7 +259,6 @@ class Tank extends Sprite {
       }
     }
 
-    // Clean up parent references
     for (Node n : touched) {
       n.parent = null;
     }
@@ -283,11 +282,10 @@ class Tank extends Sprite {
     boolean found = false;
 
     while (!queue.isEmpty()) {
-      // Sort by accumulated cost — lowest first (Dijkstra)
+      // Sort by accumulated cost, lowest first (Dijkstra)
       queue.sort((a, b) -> Float.compare(costSoFar.get(a), costSoFar.get(b)));
       Node current = queue.remove(0);
 
-      // Check if we reached the target
       if (current == targetNode) {
         found = true;
         goalNode = targetNode;
@@ -322,7 +320,6 @@ class Tank extends Sprite {
       }
     }
 
-    // Clean up parent references
     for (Node n : touched) {
       n.parent = null;
     }
@@ -337,6 +334,15 @@ class Tank extends Sprite {
     }
   }
 
+ /**
+ Expanderar den nuvarande noden genom att uppfatta dess grannar i 8 riktningar.
+ Lägger till nya grannar i tankens kunskapskarta (knownMap). De nya noderna markeras som VISIBLE
+ och bildar frontieren, detta är som Russel och Norvig (2021, kap. 3.3) beskriver, de noder som nåtss men ännu inte
+ expanderats.
+
+ Detta är perceptionssteget i online-sökningen, efter varje steg tar tanken emot en persept och
+ uppdaterar sin uppfattning om miljön (Russel & Norvig, kap. 4.5.2).
+ */
   void perceiveNeighbours() {
     if (currentNode == null) return;
 
@@ -348,17 +354,24 @@ class Tank extends Sprite {
       int nodeRow = currentNode.row + rowDirections[i];
       String key = getPositionKey(nodeCol, nodeRow);
 
+      // Behandlar bara noder som inte redan lagts till i kunskapskartan
       if (!knownMap.containsKey(key)) {
+        // Fråga världen vad som finns på possitionen av den kommande nya grannen (sensor)
         NodeType sensedType = worldSensor.senseTypeAt(nodeCol, nodeRow);
 
         float positionX = nodeCol * cellSize + cellSize;
         float posiitonY = nodeRow * cellSize + cellSize;
         Node newNode = new Node(nodeCol, nodeRow, positionX, posiitonY);
         newNode.type = sensedType;
+
+        // Markera som nya noden som VISIBLE, den är känd men har inte expanderats, frontier-nod
         newNode.exploredState = ExploredState.VISIBLE;
 
         knownMap.put(key, newNode);
         wireNeighbours(newNode);
+
+        // Beräkna antal nodsteg till hembasen via bakåtriktad BFS, denna information
+        // används senare av hueristiken i selectFrontierNode() och computePath().
         computeDistanceFromBase(newNode);
       }
     }
@@ -378,7 +391,7 @@ class Tank extends Sprite {
     }
   }
 
-  // BFS backwards from base nodes
+  // Bakåtriktad BFS från hembasen till målet
   void computeDistanceFromBase(Node target) {
     ArrayList<Node> queue = new ArrayList<Node>();
     HashMap<Node, Integer> dist = new HashMap<Node, Integer>();
@@ -405,11 +418,25 @@ class Tank extends Sprite {
     }
   }
 
+  /**
+  Väljer den mest lovande frontier-noden (VISIBLE nod) utefter heurestik som nästa mål
+  att ta sig till.
+
+  Alla VISIBLE noder i knownMap är kandidater, dessa representerar frontieren ,gränsen mellan
+  utforskat och outforskat område (Russel & Norvig, 2021, kap. 3.3)
+
+  Valet görs girigt med en heuristisk poängfunktion, kandidaten med lägst
+  poäng väljs. Heuristiken uppmuntrar tanken att utforska noder nära sig själv
+  och nära hembasen, och jobba sig systematiskt utåt
+
+  @return bästa frontier-noden, eller null om frontiern är tom (utforskning klar)
+  */
   Node selectFrontierNode() {
     ArrayList<Node> candidates = new ArrayList<Node>();
 
     for (Node n : knownMap.values()) {
       if (!n.isTraversable()) continue;
+      // Endast frontier-noder (VISIBLE = nådda men ej expanderade)
       if (n.exploredState != ExploredState.VISIBLE) continue;
       candidates.add(n);
     }
@@ -422,14 +449,18 @@ class Tank extends Sprite {
     for (Node n : candidates) {
       float score = 0;
 
+      // Undiv att utforska hembasen
       if (n.type == NodeType.HOME_BASE) {
         score += 20000;
       } else {
+        // Föredra noder nära hembasen, uforska succesivt utåt från basen
         score += n.distanceFromBase * 150;
       }
 
+      // Föredra noder som ligger nära tankens nuvarande position, undviker onödigt långa hopp.
       score += dist(position.x, position.y, n.position.x, n.position.y);
 
+      // Undivk noder som tanken tidigare haft svårighet att ta sig till, skett kollision på vägen dit
       if (n.exploredState == ExploredState.PENDING) score += 3000;
 
       if (score < bestScore) {
@@ -440,6 +471,19 @@ class Tank extends Sprite {
     return bestNode;
   }
 
+  /**
+  Beräknar en väg från currentNode till goalNode med Greedy Best-First Search.
+
+  Greedy Best-First Search utvärderar noder med enbart en heuristisk uppskattning
+  f(n) = h(n), utan ackumulerad vägkostnad g(n).
+  Heurestiken är utformad för utforskning snarare än kortaste vägen, den planerar vägen med föredragna noder som
+  inte har besökts men som är kända nära hembasen.
+
+  Den beräknade vgen lagras i path som en ordnad lista av noder från currentNode till goalNode, denna path följs
+  sedan med followPath().
+
+  @param goalNode målnoden vald av selectFrontierNode()
+  */
   void computePath(Node goalNode) {
     path.clear();
     if (currentNode == null || goalNode == null) return;
@@ -456,6 +500,7 @@ class Tank extends Sprite {
     boolean found = false;
 
     while (!queue.isEmpty()) {
+      // Expandera alltid noden med lägst heurestiskt värde först
       queue.sort((a, b) -> Float.compare(a.hCost, b.hCost));
       Node current = queue.remove(0);
 
@@ -468,18 +513,26 @@ class Tank extends Sprite {
         if (nb.visited) continue;
         if (!nb.isTraversable()) continue;
 
+        // h(n), enbart heuristik och ingen ackumulerad kostnad g(n) 
         float h = 0;
 
+        // Undvik att gå igenom hembasen
         if (nb.type == NodeType.HOME_BASE) {
           h += 10000;
         } else {
+          // föredra noder som är nära basen
           h -= nb.distanceFromBase * 150;
         }
 
+        // Undvik i första hand noder som tanken haft svårt att ta sig till tidigare, kollisionssvårigheter
         if (nb.exploredState == ExploredState.PENDING) h += 5000;
+        // Undvik helst redan besökta noder
         if (nb.exploredState == ExploredState.VISITED) h += 2000;
+        // Undvik att direkt backa tillbaka vägen tanken kom ifrån
         if (nb == lastNode) h += 500;
 
+        // Föredra noder som är nära tankens nuvarande position, detta får tanken att
+        // fördra åka vertikalt eller horisontelt istället för diagonalt om inte diagonalt är den optimala vägen
         h += dist(position.x, position.y, nb.position.x, nb.position.y) * 150;
 
         nb.hCost  = h;
@@ -490,6 +543,7 @@ class Tank extends Sprite {
       }
     }
 
+    // Rekonstruera vägen genom att följa parent-pekare från mål tillbaka till start
     if (found) {
       Node step = goalNode;
       while (step != null && step != currentNode) {
@@ -498,6 +552,7 @@ class Tank extends Sprite {
       }
     }
 
+    // Återställ flaggor, knownMap är persistent och måste rensas efter varje sökning
     for (Node n : touched) {
       n.visited = false;
       n.parent  = null;
