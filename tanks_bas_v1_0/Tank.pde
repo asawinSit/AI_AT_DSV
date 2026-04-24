@@ -723,8 +723,23 @@ class Tank extends Sprite {
     for (Node n : knownMap.values()) {
       fill(n.getColor());
       ellipse(n.position.x, n.position.y, n.w, n.h);
+
+      //show  node's heuristic value
+      if (nav_Imp == Nav_Imp.LRTA) {
+        float hValue = LRTA_Nav.H.getOrDefault(n, 0.0f);
+        if (hValue > 0) {
+          push();
+          fill(0);
+          textAlign(CENTER, CENTER);
+          textSize(15);
+          text(String.format("%.1f", hValue), n.position.x, n.position.y);
+          pop();
+        }
+      }
     }
   }
+
+
 
   String getPositionKey(int column, int row) {
     return column + "," + row;
