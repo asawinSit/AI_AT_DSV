@@ -732,7 +732,7 @@ class Tank extends Sprite {
           fill(0);
           textAlign(CENTER, CENTER);
           textSize(15);
-          text(String.format("%.1f", hValue), n.position.x, n.position.y);
+          text(String.format("%.1f", hValue), n.position.x, n.position.y-10);
           pop();
         }
       }
