@@ -4,7 +4,7 @@
 
 ## Dependencies
 
-För att köra detta måste man ha **Processing** nerladdat.
+För att köra detta måste man ha **Processing** nedladdat.
 
 ## Kontroller
 
@@ -20,5 +20,5 @@ För att köra detta måste man ha **Processing** nerladdat.
 
 ### Utvecklare
 
-Asawin Sitthi
+Asawin Sitthi---
 Chris Pilegård
