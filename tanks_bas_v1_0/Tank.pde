@@ -1,6 +1,10 @@
 //Asawin Sitthi assi7068
 //Chris Pilegård chpi8651
 
+enum TankCondition {
+  ACTIVE, DISABLED, DESTROYED
+}
+
 enum TankState {
   SEARCH, REPORT, STOP
 }
@@ -19,6 +23,8 @@ class Tank extends Sprite {
   float maxSpeed = 3.0;
   float turnStep = 0.5;
 
+  float heading;
+
   float maxForce = 0.1;
 
   // Identity
@@ -35,7 +41,7 @@ class Tank extends Sprite {
   // Sensor
   WorldSensor worldSensor;
   int cellSize; // Should the tank know this? Argument, tank team decision for accurate search.
-  float   rayLength  = 75;
+  float   rayLength  = 200;
   float   rayWidth;
 
   // own knowledge graph
@@ -52,6 +58,15 @@ class Tank extends Sprite {
   int reportWaitFrames = 0;
   static final int REPORT_WAIT_DURATION = 180; // 3 seconds at 60fps
 
+
+  //Cannon
+  Cannon cannon;
+
+  //HealthComponent
+  TankCondition tankCondition;
+  HealthComponent healthComponent;
+  boolean alreadyDead = false;
+
   Tank(int id, Team team, PVector _startpos, float _size, color _col) {
     this.tank_id      = id;
     this.diameter     = _size;
@@ -62,10 +77,44 @@ class Tank extends Sprite {
     this.position     = _startpos.copy();
     this.velocity     = new PVector(0, 0);
     this.acceleration = new PVector(0, 0);
-
+    cannon  = new Cannon(this);
+    healthComponent = new HealthComponent(3);
     nav_Imp = Nav_Imp.DEFAULT;
-
+    tankCondition = TankCondition.ACTIVE;
     rayWidth   = radius /2;
+  }
+
+  void fire()
+  {
+    cannon.fire();
+  }
+
+  void takeDamage(int damage)
+  {
+    healthComponent.takeDamage(damage);
+
+    if (healthComponent.currentHealth == 1)
+    {
+      tankCondition = TankCondition.DISABLED;
+    }
+
+    if (!alreadyDead && isDead())
+    {
+      alreadyDead = true;
+      onDeath();
+    }
+  }
+
+  public boolean isDead()
+  {
+    return healthComponent.isDead();
+  }
+
+  void onDeath()
+  {
+    team.onTankDied(this);
+    tankCondition = TankCondition.DESTROYED;
+    active = false;
   }
 
   void addHomeBase(ArrayList<Node> homeBase) {
@@ -101,14 +150,32 @@ class Tank extends Sprite {
     if (enemyInSight()) {
       println("Enemy detected");
     }
+    switch (tankCondition) {
+    case ACTIVE:
+      handleTankSate();
+      updatePosition();
 
+    case DISABLED:
+      cannon.update();
+      break;
+    case DESTROYED:
+      break;
+    }
+  }
+
+  void handleTankSate()
+  {
     switch (tankState) {
     case SEARCH:
       if (worldSensor.isMoreThanHalfInsideABase(69, this) && enemyInSight()) {
         path.clear();
         reportWaitFrames = 0;
         tankState = TankState.REPORT;
-      } else {
+      } else if (enemyInSight())
+      {
+        fire();
+      } else
+      {
         search();
       }
       break;
@@ -119,7 +186,6 @@ class Tank extends Sprite {
       stopMoving();
       break;
     }
-    updatePosition();
   }
 
   void search() {
@@ -334,15 +400,15 @@ class Tank extends Sprite {
     }
   }
 
- /**
- Expanderar den nuvarande noden genom att uppfatta dess grannar i 8 riktningar.
- Lägger till nya grannar i tankens kunskapskarta (knownMap). De nya noderna markeras som VISIBLE
- och bildar frontieren, detta är som Russel och Norvig (2021, kap. 3.3) beskriver, de noder som nåtss men ännu inte
- expanderats.
-
- Detta är perceptionssteget i online-sökningen, efter varje steg tar tanken emot en persept och
- uppdaterar sin uppfattning om miljön (Russel & Norvig, kap. 4.5.2).
- */
+  /**
+   Expanderar den nuvarande noden genom att uppfatta dess grannar i 8 riktningar.
+   Lägger till nya grannar i tankens kunskapskarta (knownMap). De nya noderna markeras som VISIBLE
+   och bildar frontieren, detta är som Russel och Norvig (2021, kap. 3.3) beskriver, de noder som nåtss men ännu inte
+   expanderats.
+   
+   Detta är perceptionssteget i online-sökningen, efter varje steg tar tanken emot en persept och
+   uppdaterar sin uppfattning om miljön (Russel & Norvig, kap. 4.5.2).
+   */
   void perceiveNeighbours() {
     if (currentNode == null) return;
 
@@ -419,18 +485,18 @@ class Tank extends Sprite {
   }
 
   /**
-  Väljer den mest lovande frontier-noden (VISIBLE nod) utefter heurestik som nästa mål
-  att ta sig till.
-
-  Alla VISIBLE noder i knownMap är kandidater, dessa representerar frontieren ,gränsen mellan
-  utforskat och outforskat område (Russel & Norvig, 2021, kap. 3.3)
-
-  Valet görs girigt med en heuristisk poängfunktion, kandidaten med lägst
-  poäng väljs. Heuristiken uppmuntrar tanken att utforska noder nära sig själv
-  och nära hembasen, och jobba sig systematiskt utåt
-
-  @return bästa frontier-noden, eller null om frontiern är tom (utforskning klar)
-  */
+   Väljer den mest lovande frontier-noden (VISIBLE nod) utefter heurestik som nästa mål
+   att ta sig till.
+   
+   Alla VISIBLE noder i knownMap är kandidater, dessa representerar frontieren ,gränsen mellan
+   utforskat och outforskat område (Russel & Norvig, 2021, kap. 3.3)
+   
+   Valet görs girigt med en heuristisk poängfunktion, kandidaten med lägst
+   poäng väljs. Heuristiken uppmuntrar tanken att utforska noder nära sig själv
+   och nära hembasen, och jobba sig systematiskt utåt
+   
+   @return bästa frontier-noden, eller null om frontiern är tom (utforskning klar)
+   */
   Node selectFrontierNode() {
     ArrayList<Node> candidates = new ArrayList<Node>();
 
@@ -472,18 +538,18 @@ class Tank extends Sprite {
   }
 
   /**
-  Beräknar en väg från currentNode till goalNode med Greedy Best-First Search.
-
-  Greedy Best-First Search utvärderar noder med enbart en heuristisk uppskattning
-  f(n) = h(n), utan ackumulerad vägkostnad g(n).
-  Heurestiken är utformad för utforskning snarare än kortaste vägen, den planerar vägen med föredragna noder som
-  inte har besökts men som är kända nära hembasen.
-
-  Den beräknade vgen lagras i path som en ordnad lista av noder från currentNode till goalNode, denna path följs
-  sedan med followPath().
-
-  @param goalNode målnoden vald av selectFrontierNode()
-  */
+   Beräknar en väg från currentNode till goalNode med Greedy Best-First Search.
+   
+   Greedy Best-First Search utvärderar noder med enbart en heuristisk uppskattning
+   f(n) = h(n), utan ackumulerad vägkostnad g(n).
+   Heurestiken är utformad för utforskning snarare än kortaste vägen, den planerar vägen med föredragna noder som
+   inte har besökts men som är kända nära hembasen.
+   
+   Den beräknade vgen lagras i path som en ordnad lista av noder från currentNode till goalNode, denna path följs
+   sedan med followPath().
+   
+   @param goalNode målnoden vald av selectFrontierNode()
+   */
   void computePath(Node goalNode) {
     path.clear();
     if (currentNode == null || goalNode == null) return;
@@ -513,7 +579,7 @@ class Tank extends Sprite {
         if (nb.visited) continue;
         if (!nb.isTraversable()) continue;
 
-        // h(n), enbart heuristik och ingen ackumulerad kostnad g(n) 
+        // h(n), enbart heuristik och ingen ackumulerad kostnad g(n)
         float h = 0;
 
         // Undvik att gå igenom hembasen
@@ -573,6 +639,19 @@ class Tank extends Sprite {
   }
 
   void onCollisionDetected(Sprite hitObject) {
+
+    if (hitObject == cannon.cannonBall)
+      return;
+
+
+    if (hitObject instanceof CannonBall) {
+
+      CannonBall ball = (CannonBall) hitObject;
+
+
+      takeDamage(1);
+    }
+
     if (active) {
 
       PVector normal = PVector.sub(this.position, hitObject.position);
@@ -651,8 +730,10 @@ class Tank extends Sprite {
     velocity.mult(1.0 - constrain(turnAmount, 0, 0.7));
     this.position.add(this.velocity);
     this.acceleration.mult(0);
-
-    // println("Speed:" + velocity.mag());
+    if (velocity.mag() > 0.01)
+    {
+      heading = velocity.heading();
+    }
   }
 
 
@@ -675,6 +756,10 @@ class Tank extends Sprite {
   void drawTank(float x, float y) {
     fill(this.col, 50);
 
+    int currentHealth = this.healthComponent.currentHealth;
+    if (this.team.getId() == 0) fill((((255/6) * currentHealth) *40 ), 50* currentHealth, 50* currentHealth, 255 - currentHealth*60);
+    if (this.team.getId() == 1) fill(10*currentHealth, (255/6) *currentHealth, (((255/6) * currentHealth) * 3), 255 - currentHealth*60);
+
     ellipse(x, y, 50, 50);
     strokeWeight(1);
     line(x, y, x+25, y);
@@ -696,17 +781,19 @@ class Tank extends Sprite {
 
     imageMode(CENTER);
 
-    rotate(this.velocity.heading());
+    rotate(heading);
     drawTank(0, 0);
     imageMode(CORNER);
     strokeWeight(1);
 
     popMatrix();
+
+    cannon.display();
   }
 
   void displaySightRay() {
-    PVector rayDir  = new PVector(cos(this.velocity.heading()), sin(this.velocity.heading()));
-    PVector perp    = new PVector(-sin(this.velocity.heading()), cos(this.velocity.heading()));
+    PVector rayDir  = new PVector(cos(heading), sin(heading));
+    PVector perp    = new PVector(-sin(heading), cos(heading));
 
     // Ray tip
     float tipX = position.x + rayDir.x * rayLength;

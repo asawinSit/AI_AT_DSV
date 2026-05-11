@@ -12,7 +12,7 @@ static final PVector TEAM0_TANK0_START_POSITION = new PVector(50, 50);
 static final PVector TEAM0_TANK1_START_POSITION = new PVector(50, 150);
 static final PVector TEAM0_TANK2_START_POSITION  = new PVector(50, 250);
 
-static final PVector TEAM1_TANK0_START_POSITION = new PVector(WINDOW_WIDTH-50, WINDOW_HEIGHT-250);
+static final PVector TEAM1_TANK0_START_POSITION = new PVector(WINDOW_WIDTH-150, WINDOW_HEIGHT-500);
 static final PVector TEAM1_TANK1_START_POSITION = new PVector(WINDOW_WIDTH-50, WINDOW_HEIGHT-150);
 static final PVector TEAM1_TANK2_START_POSITION = new PVector(WINDOW_WIDTH-50, WINDOW_HEIGHT-50);
 
@@ -39,9 +39,17 @@ ArrayList<Tank> activeTanks = new ArrayList<Tank>();
 
 int currentFrameRate = ORIGINAL_FRAME_RATE;
 
-boolean gameOver;
+
 boolean pause;
 boolean debug;
+
+
+
+Timer timer;
+int startTime = 3; //minutes
+int remainingTime;
+
+GameManager gameManager;
 
 public void settings() {
   size(WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -50,10 +58,11 @@ public void settings() {
 void setup() {
   frameRate(ORIGINAL_FRAME_RATE);
 
-  gameOver = false;
+
   pause = true;
   debug = false;
 
+  gameManager = new GameManager();
   grid = new Grid(GRID_COLUMNS, GRID_ROWS, GRID_CELL_SIZE);
 
   setupTrees();
@@ -65,9 +74,23 @@ void setup() {
   collisionManager = new CollisionManager();
   addCollision();
 
-  activateTank(allTanks[0]);
+  for (Tank t : allTanks)
+  {
+    activateTank(t);
+  }
+
   //activateTank(allTanks[1]);
   //activateTank(allTanks[2]);
+  setupTimer();
+}
+
+void setupTimer()
+{
+
+  remainingTime = startTime * 60;
+  timer = new Timer();
+  timer.setDirection("down");
+  timer.setTime(startTime);
 }
 
 void setupTanks() {
@@ -100,12 +123,13 @@ void addCollision() {
 
   for (Tank t : allTanks) {
     collisionManager.objects.add(t);
+    collisionManager.objects.add(t.cannon.cannonBall);
   }
 }
 
 void setupTeams() {
-  team0 = new Team(0, TANK_SIZE, team0Color, TEAM0_TANK0_START_POSITION, 1, TEAM0_TANK1_START_POSITION, 2, TEAM0_TANK2_START_POSITION, 3);
-  team1 = new Team(1, TANK_SIZE, team1Color, TEAM1_TANK0_START_POSITION, 4, TEAM1_TANK1_START_POSITION, 5, TEAM1_TANK2_START_POSITION, 6);
+  team0 = new Team(gameManager, 0, TANK_SIZE, team0Color, TEAM0_TANK0_START_POSITION, 1, TEAM0_TANK1_START_POSITION, 2, TEAM0_TANK2_START_POSITION, 3);
+  team1 = new Team(gameManager, 1, TANK_SIZE, team1Color, TEAM1_TANK0_START_POSITION, 4, TEAM1_TANK1_START_POSITION, 5, TEAM1_TANK2_START_POSITION, 6);
 
   markBaseType(team0, NodeType.HOME_BASE);
   markBaseType(team1, NodeType.ENEMY_BASE);
@@ -158,9 +182,17 @@ ArrayList<Node> buildBaseNodes(Team team, NodeType type) {
 void draw() {
   background(200);
 
-  if (!gameOver && !pause) {
+  if (!gameManager.isGamOver() && !pause) {
     updateTanksLogic();
     updateCollision();
+
+    timer.tick(); // Alt.1
+    remainingTime = int(timer.getTotalTime());
+    if (remainingTime <= 0) {
+      remainingTime = 0;
+      timer.pause();
+      gameManager.setGamOver(true);
+    }
   }
 
   displayTeamBases();
@@ -196,6 +228,7 @@ void displayTanks() {
   team1.displayTanks();
 }
 
+
 void displayGUI() {
   if (pause) {
     textSize(24);
@@ -203,11 +236,14 @@ void displayGUI() {
     text("Paused!\n(\'p\'-continues)\n(\'d\'-debug)\n(\'1\'/\'2\'-increase/lower fps) \n(\'a\'-change exploration algorithm)", width/2, 50);
   }
 
-  if (gameOver) {
+  if (gameManager.isGamOver()) {
     textSize(36);
     fill(30);
     text("Game Over!", width/2-100, height/2);
   }
+  textSize(24);
+  fill(30);
+  text(remainingTime, width/2, 25);
 }
 
 void displayDebug() {
@@ -241,6 +277,33 @@ void keyReleased() {
       println("tank navigation implementation: " + t.nav_Imp );
     }
   }
+
+
+  if (key == ' ') {
+    for (Tank t : activeTanks)
+    {
+      t.tankState = TankState.STOP;
+      t.fire();
+      println("t.velocity.heading(): " + t.velocity.heading() );
+      println("t.heading: " + t.heading );
+      println(" PVector.fromAngle(t.heading): " +  PVector.fromAngle(t.heading) );
+    }
+  }
+
+  if (key == 'w') {
+    for (Tank t : activeTanks)
+    {
+      t.tankState = TankState.SEARCH;
+    }
+  }
+
+  if (key == 'q') {
+    for (Tank t : team0.tanks)
+    {
+      t.takeDamage(1);
+    }
+  }
+
 
   if (key == '1') {
     if (currentFrameRate < ORIGINAL_FRAME_RATE * 3) {

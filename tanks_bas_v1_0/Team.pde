@@ -16,12 +16,14 @@ class Team {
 
   color team_color;
 
+  GameManager gameManager;
 
-  Team (int team_id, int tank_size, color c,
+  Team (GameManager gameManager, int team_id, int tank_size, color c,
     PVector tank0_startpos, int tank0_id,
     PVector tank1_startpos, int tank1_id,
     PVector tank2_startpos, int tank2_id)
   {
+    this.gameManager = gameManager;
     this.id = team_id;
     this.tank_size = tank_size;
     this.team_color = c;
@@ -56,6 +58,25 @@ class Team {
     for (Tank tank : tanks) {
       tank.update();
     }
+  }
+
+  void onTankDied(Tank tank)
+  {
+    if (isAllTanksDead())
+    {
+      println("Team eliminated");
+      gameManager.setGamOver(true);
+    }
+  }
+
+  boolean isAllTanksDead()
+  {
+    for (Tank t : tanks)
+    {
+      if ( !t.isDead())
+        return false;
+    }
+    return true;
   }
 
   void displayHomeBaseTeam() {
