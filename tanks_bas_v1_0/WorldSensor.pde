@@ -21,10 +21,12 @@ interface WorldSensor {
     float viewDistance,
     float fovDegrees,
     int myTeamId
-    );
+  );
+
+  boolean rayBlockedByCircle(float rx, float ry, float tx, float ty,float cx, float cy, float cr);
+  boolean isOccluded(float fromX, float fromY, float tx, float ty,Tank skipTank, Tree skipTree, Tank self);
 
   boolean isMoreThanHalfInsideABase(int myTeamId, Tank self);
-
 
   PVector getBaseDirection(int myTeamId, Tank self);
 

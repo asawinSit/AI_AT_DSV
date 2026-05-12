@@ -906,58 +906,111 @@ class Tank extends Sprite {
   void displaySightRayCone() {
     boolean hit = enemyInSight();
     float halfFov = radians(60 * 0.5);
-
-    // Left edge direction
-    PVector leftDir = PVector.fromAngle(heading - halfFov);
-
-    // Right edge direction
-    PVector rightDir = PVector.fromAngle(heading + halfFov);
-
-    // Cone edge points
-    float leftX  = position.x + leftDir.x * rayLength;
-    float leftY  = position.y + leftDir.y * rayLength;
-
-    float rightX = position.x + rightDir.x * rayLength;
-    float rightY = position.y + rightDir.y * rayLength;
-
-    // Center line
-    PVector centerDir = PVector.fromAngle(heading);
-    float tipX = position.x + centerDir.x * rayLength;
-    float tipY = position.y + centerDir.y * rayLength;
+    int arcSteps = 40; // More = smoother
 
     pushStyle();
-
-    // Fill cone with arc
-    fill(hit ? color(255, 50, 50, 50) : color(255, 220, 0, 40));
     noStroke();
 
-    beginShape();
-    vertex(position.x, position.y); // Origin
+    // --- Draw cone segment by segment ---
+    for (int i = 0; i < arcSteps; i++) {
+      float angleA = heading - halfFov + (2 * halfFov * i       / arcSteps);
+      float angleB = heading - halfFov + (2 * halfFov * (i + 1) / arcSteps);
 
-    // Create arc from left to right
-    int arcSteps = 20; // More steps = smoother arc
+      // Mid-angle for occlusion sampling
+      float angleMid = (angleA + angleB) * 0.5;
+      PVector dirMid = PVector.fromAngle(angleMid);
+
+      // Cast ray at mid-angle, find how far until blocked
+      float clearDist = castRayDistance(
+        position.x, position.y,
+        dirMid.x, dirMid.y,
+        rayLength
+      );
+
+      boolean blocked = clearDist < rayLength * 0.99;
+
+      // --- Clear (visible) wedge slice ---
+      fill(hit ? color(255, 50, 50, 55) : color(255, 220, 0, 45));
+      PVector dirA = PVector.fromAngle(angleA);
+      PVector dirB = PVector.fromAngle(angleB);
+      beginShape();
+        vertex(position.x, position.y);
+        vertex(position.x + dirA.x * clearDist, position.y + dirA.y * clearDist);
+        vertex(position.x + dirB.x * clearDist, position.y + dirB.y * clearDist);
+      endShape(CLOSE);
+
+      // --- Blocked (shadowed) wedge slice ---
+      if (blocked) {
+        fill(0, 0, 0, 55);
+        beginShape();
+          vertex(position.x + dirA.x * clearDist, position.y + dirA.y * clearDist);
+          vertex(position.x + dirA.x * rayLength,  position.y + dirA.y * rayLength);
+          vertex(position.x + dirB.x * rayLength,  position.y + dirB.y * rayLength);
+          vertex(position.x + dirB.x * clearDist,  position.y + dirB.y * clearDist);
+        endShape(CLOSE);
+      }
+    }
+
+    // --- Cone outline edges ---
+    PVector leftDir  = PVector.fromAngle(heading - halfFov);
+    PVector rightDir = PVector.fromAngle(heading + halfFov);
+
+    stroke(hit ? color(255, 50, 50, 180) : color(255, 220, 0, 180));
+    strokeWeight(1);
+    noFill();
+    line(position.x, position.y,
+        position.x + leftDir.x  * rayLength,
+        position.y + leftDir.y  * rayLength);
+    line(position.x, position.y,
+        position.x + rightDir.x * rayLength,
+        position.y + rightDir.y * rayLength);
+
+    // Arc outline
+    beginShape();
     for (int i = 0; i <= arcSteps; i++) {
       float angle = heading - halfFov + (2 * halfFov * i / arcSteps);
       PVector dir = PVector.fromAngle(angle);
       vertex(position.x + dir.x * rayLength,
-        position.y + dir.y * rayLength);
+            position.y + dir.y * rayLength);
     }
-
-    endShape(CLOSE);
-
-    // Outline edges
-    stroke(hit ? color(255, 50, 50, 180) : color(255, 220, 0, 180));
-    strokeWeight(1);
-
-    line(position.x, position.y, leftX, leftY);
-    line(position.x, position.y, rightX, rightY);
+    endShape();
 
     // Center direction line
+    PVector centerDir = PVector.fromAngle(heading);
     stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 220));
-    line(position.x, position.y, tipX, tipY);
+    line(position.x, position.y,
+        position.x + centerDir.x * rayLength,
+        position.y + centerDir.y * rayLength);
 
     popStyle();
   }
+
+  float castRayDistance(float rx, float ry, float rdx, float rdy, float maxDist) {
+    int steps = 30; // More = more accurate shadow edge
+    float stepSize = maxDist / steps;
+
+    for (int s = 1; s <= steps; s++) {
+      float sampleDist = stepSize * s;
+      float sx = rx + rdx * sampleDist;
+      float sy = ry + rdy * sampleDist;
+
+      // Check tanks
+      for (Tank t : allTanks) {
+        if (t == this) continue;
+        float d = dist(sx, sy, t.position.x, t.position.y);
+        if (d < t.radius) return sampleDist;
+      }
+
+      // Check trees
+      for (Tree tree : allTrees) {
+        float d = dist(sx, sy, tree.position.x, tree.position.y);
+        if (d < tree.radius) return sampleDist;
+      }
+    }
+
+    return maxDist; // Nothing hit — fully clear
+  }
+  
   void displayPath() {
     if (path.isEmpty()) return;
     pushStyle();

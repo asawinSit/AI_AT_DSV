@@ -90,7 +90,61 @@ class WorldSensorImpl implements WorldSensor {
     }
   }
 
+  // Helper: does a ray from (rx,ry) to (tx,ty) get blocked by a circle at (cx,cy) with radius r?
+  boolean rayBlockedByCircle(float rx, float ry, float tx, float ty,
+                              float cx, float cy, float cr) {
+    // Vector from ray origin to circle center
+    float dx = cx - rx, dy = cy - ry;
+    // Vector along the ray
+    float lx = tx - rx, ly = ty - ry;
+    float rayLen = sqrt(lx*lx + ly*ly);
+    if (rayLen == 0) return false;
 
+    // Project circle center onto ray (normalized)
+    float t = (dx*lx + dy*ly) / (rayLen*rayLen);
+    t = constrain(t, 0, 1); // Clamp to segment
+
+    // Closest point on ray segment to circle center
+    float closestX = rx + t*lx;
+    float closestY = ry + t*ly;
+
+    // Distance from circle center to closest point
+    float distSq = (cx-closestX)*(cx-closestX) + (cy-closestY)*(cy-closestY);
+    return distSq < cr*cr;
+  }
+
+  // Check if line-of-sight from (fromX,fromY) to (tx,ty) is blocked by any obstacle,
+  // ignoring the specific tank/tree we're testing (skipTank / skipTree)
+  boolean isOccluded(float fromX, float fromY, float tx, float ty,
+                    Tank skipTank, Tree skipTree, Tank self) {
+    // Check blocking by other tanks
+    for (Tank blocker : allTanks) {
+      if (blocker == self)     continue; // Never block with self
+      if (blocker == skipTank) continue; // Don't block target with itself
+
+      if (rayBlockedByCircle(fromX, fromY, tx, ty,
+                            blocker.position.x, blocker.position.y, blocker.radius)) {
+        // Only counts as a blocker if it's closer than the target
+        float blockerDist = dist(fromX, fromY, blocker.position.x, blocker.position.y);
+        float targetDist  = dist(fromX, fromY, tx, ty);
+        if (blockerDist < targetDist) return true;
+      }
+    }
+
+    // Check blocking by trees
+    for (Tree blocker : allTrees) {
+      if (blocker == skipTree) continue;
+
+      if (rayBlockedByCircle(fromX, fromY, tx, ty,
+                            blocker.position.x, blocker.position.y, blocker.radius)) {
+        float blockerDist = dist(fromX, fromY, blocker.position.x, blocker.position.y);
+        float targetDist  = dist(fromX, fromY, tx, ty);
+        if (blockerDist < targetDist) return true;
+      }
+    }
+
+    return false;
+  }
 
 
   boolean senseEnemyInRay(float fromX, float fromY, float heading, float rayLength, float rayWidth, int myTeamId) {
