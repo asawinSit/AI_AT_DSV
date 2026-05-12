@@ -6,7 +6,7 @@ enum TankCondition {
 }
 
 enum TankState {
-  SEARCH, REPORT, STOP, AIM, SHOOT, CONTRACTED
+  SEARCH, REPORT, STOP, AIM, SHOOT, CONTRACTED, DISABLED_SEARCH
 }
 
 enum Nav_Imp {
@@ -112,6 +112,18 @@ class Tank extends Sprite {
     return angleDiff < radians(0.4);
   }
 
+  void reportEnemySeen()
+  {
+    ArrayList<PVector> enemies =
+      objectsInSight.get(ObjectType.ENEMY);
+
+    if (enemies != null && !enemies.isEmpty())
+    {
+      PVector enemyPos = enemies.get(0);
+      team.radioSystem.announce(new RadioMessage(this, enemyPos, MessageType.SEEN_ENEMY));
+    }
+  }
+
   void aim()
   {
     stopMoving();
@@ -135,6 +147,7 @@ class Tank extends Sprite {
     if (healthComponent.currentHealth == 1)
     {
       tankCondition = TankCondition.DISABLED;
+      tankState = TankState.DISABLED_SEARCH;
       team.onTankDisable(this);
     }
 
@@ -181,12 +194,15 @@ class Tank extends Sprite {
     String key = getPositionKey(col, row);
     Node node = knownMap.containsKey(key) ? knownMap.get(key) : null;
 
+
+
     if (node != null && node != lastNode) {
       lastNode = currentNode;
       currentNode = node;
       currentNode.exploredState = ExploredState.VISITED;
-      perceiveNeighbours();
     }
+
+
 
     switch (tankCondition) {
     case ACTIVE:
@@ -197,31 +213,35 @@ class Tank extends Sprite {
       break;
     case DISABLED:
       handleTankSate();
+
       cannon.update();
       break;
     case DESTROYED:
       break;
     }
+    perceiveNeighbours();
   }
 
   void handleTankSate()
   {
+    boolean enemyVisible = enemyInSight();
     switch (tankState) {
     case SEARCH:
-      if (worldSensor.isMoreThanHalfInsideABase(69, this) && enemyInSight()) {
+      if (worldSensor.isMoreThanHalfInsideABase(69, this) && enemyVisible) {
         path.clear();
         reportWaitFrames = 0;
         tankState = TankState.REPORT;
-      } else if (enemyInSight() && cannon.isLoaded)
+      } else if (enemyVisible && cannon.isLoaded)
       {
         tankState = TankState.AIM;
+        return;
       }
-      if (enemyInSight()) {
-        PVector enemyPos = objectsInSight.get(ObjectType.ENEMY).get(0);
-        team.radioSystem.announce(new RadioMessage(this, enemyPos, MessageType.SEEN_ENEMY));
+      if (enemyVisible) {
+        reportEnemySeen();
       }
       if (tankCondition == TankCondition.ACTIVE) {
         search();
+        return;
       }
       break;
     case REPORT:
@@ -232,8 +252,8 @@ class Tank extends Sprite {
       break;
 
     case AIM:
-
-      if (enemyInSight())
+      reportEnemySeen();
+      if (enemyVisible)
       {
         if (!isLookingAtTarget(objectsInSight.get(ObjectType.ENEMY).get(0)))
         {
@@ -245,6 +265,8 @@ class Tank extends Sprite {
       } else {
         if (tankCondition == TankCondition.ACTIVE) {
           tankState = TankState.SEARCH;
+        } else {
+          tankState = TankState.DISABLED_SEARCH;
         }
       }
       break;
@@ -252,17 +274,29 @@ class Tank extends Sprite {
       fire();
       if (tankCondition == TankCondition.ACTIVE) {
         tankState = TankState.SEARCH;
+      } else {
+        tankState = TankState.DISABLED_SEARCH;
       }
 
       break;
 
+    case  DISABLED_SEARCH:
+      if (enemyVisible) {
+
+        tankState = TankState.AIM;
+        break;
+      }
+      heading += 0.02;
+      break;
     case CONTRACTED:
       contractHandler.update();
       if (contractHandler.isTimedOut()) {
         contractHandler.revokeContract();
         break;
       }
-      if (enemyInSight()) {
+      if (enemyVisible) {
+        contractHandler.revokeContract();
+
         tankState = TankState.AIM;
         break;
       }
@@ -725,6 +759,8 @@ class Tank extends Sprite {
     if (path.isEmpty()) return;
     targetNode = path.get(0);
 
+    if (targetNode.type == NodeType.OBSTACLE)
+      return;
     seek();
 
     if (isAtTarget()) {

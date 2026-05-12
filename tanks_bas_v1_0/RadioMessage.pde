@@ -12,9 +12,6 @@ class RadioMessage {
   PVector enemyPos;
   int senderHealth;
   int framesSent;        // för att räkna staleness
-  int assignedResponders = 0; // Lägg till detta
-  static final int MAX_RESPONDERS = 3;
-
 
   RadioMessage(Tank sender, PVector enemyPos, MessageType messageType) {
     this.sender      = sender;
@@ -30,10 +27,5 @@ class RadioMessage {
 
   float staleness() {
     return (frameCount - framesSent) / 60.0; // sekunder
-  }
-
-
-  boolean needsMoreResponders() {
-    return assignedResponders < MAX_RESPONDERS;
   }
 }
