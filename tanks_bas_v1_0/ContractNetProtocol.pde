@@ -83,7 +83,7 @@ class ContractNetProtocol
     ArrayList<Bid> allBids = new ArrayList<>();
     for (Tank t : owner.team.tanks) {
       if (!t.isDead()) {
-        allBids.addAll( t.CNP.evaluateAndBid());
+        //allBids.addAll( t.CNP.evaluateAndBid());
       }
     }
 
@@ -100,7 +100,7 @@ class ContractNetProtocol
       }
 
       if (winner != null) {
-        winner.CNP.acceptContract(announcement.enemyPos);
+        //winner.CNP.acceptContract(announcement.enemyPos);
       }
     }
 

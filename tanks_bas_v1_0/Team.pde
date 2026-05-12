@@ -2,8 +2,6 @@
 //Chris Pilegård chpi8651
 class Team {
 
-
-
   Tank[] tanks = new Tank[3];
   int id; // team red 0, team blue 1.
   int tank_size;
@@ -18,6 +16,8 @@ class Team {
 
   NodeType homeBaseNodeType;
   color team_color;
+
+  RadioSystem radioSystem;
 
   GameManager gameManager;
 
@@ -47,17 +47,8 @@ class Team {
       this.homebase_x = width - 151;
       this.homebase_y = height - 351;
     }
-  }
 
-  void broadcast(RadioMessage msg)
-  {
-    for (Tank t : tanks)
-    {
-      if (t != msg.sender)
-      {
-        t.CNP.receiveMessage(msg);
-      }
-    }
+    radioSystem = new RadioSystem(this);
   }
 
   int getId() {
@@ -69,10 +60,10 @@ class Team {
   }
 
   void updateLogic() {
-
     for (Tank tank : tanks) {
       tank.update();
     }
+    radioSystem.update();
   }
 
   void onTankDied()

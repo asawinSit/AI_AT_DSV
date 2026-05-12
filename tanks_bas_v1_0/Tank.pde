@@ -50,7 +50,8 @@ class Tank extends Sprite {
   LRTA LRTA_Nav = new LRTA();
 
   //dicision making
-  ContractNetProtocol CNP;
+  //ContractNetProtocol CNP;
+  ContractHandler contractHandler;
 
   // Navigation
   Node currentNode;
@@ -92,7 +93,8 @@ class Tank extends Sprite {
     objectsInSight.put(ObjectType.ENEMY, new ArrayList<PVector>());
     objectsInSight.put(ObjectType.OBSTACLE, new ArrayList<PVector>());
 
-    this.CNP = new ContractNetProtocol(this);
+    //this.CNP = new ContractNetProtocol(this);
+    contractHandler = new ContractHandler(this);
   }
 
   boolean isLookingAtTarget(PVector target)
@@ -215,20 +217,13 @@ class Tank extends Sprite {
       {
         tankState = TankState.AIM;
       }
-      if (tankCondition == TankCondition.ACTIVE)
-        search();
-
       if (enemyInSight()) {
-        // Annonsera till team istället för direkt AIM
         PVector enemyPos = objectsInSight.get(ObjectType.ENEMY).get(0);
-        team.broadcast(new RadioMessage( this, enemyPos));
-        // Sändaren själv går till AIM direkt
-        tankState = TankState.AIM;
-      } else {
+        team.radioSystem.announce(new RadioMessage(this, enemyPos));
+      }
+      if (tankCondition == TankCondition.ACTIVE){
         search();
       }
-
-
       break;
     case REPORT:
       returnToBase();
@@ -259,17 +254,17 @@ class Tank extends Sprite {
       break;
 
     case CONTRACTED:
-      if ( frameCount -  CNP.contractedFrame >  ContractNetProtocol.CONTRACT_TIMEOUT) {
-        CNP.revokeContract();
+      contractHandler.update();
+      if (contractHandler.isTimedOut()) {
+        contractHandler.revokeContract();
         break;
       }
       if (enemyInSight()) {
         tankState = TankState.AIM;
         break;
       }
-      // Om vägen är slut men ingen fiende hittades — häv kontraktet
       if (path.isEmpty()) {
-        CNP.revokeContract();
+        contractHandler.revokeContract();
         break;
       }
       followPath();
@@ -739,10 +734,6 @@ class Tank extends Sprite {
 
 
     if (hitObject instanceof CannonBall) {
-
-      CannonBall ball = (CannonBall) hitObject;
-
-
       takeDamage(1);
     }
 
@@ -788,11 +779,7 @@ class Tank extends Sprite {
 
 
   boolean enemyInSight() {
-    for (PVector p : objectsInSight.get(ObjectType.ENEMY))
-    {
-      return true;
-    }
-
+    if (!objectsInSight.get(ObjectType.ENEMY).isEmpty()) return true;
     return false;
   }
 
