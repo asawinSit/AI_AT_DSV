@@ -6,7 +6,7 @@ enum TankCondition {
 }
 
 enum TankState {
-  SEARCH, REPORT, STOP, AIM, SHOOT
+  SEARCH, REPORT, STOP, AIM, SHOOT, CONTRACTED
 }
 
 enum Nav_Imp {
@@ -49,6 +49,9 @@ class Tank extends Sprite {
   HashMap<String, Node> knownMap = new HashMap<String, Node>();
   LRTA LRTA_Nav = new LRTA();
 
+  //dicision making
+  ContractNetProtocol CNP;
+
   // Navigation
   Node currentNode;
   Node lastNode;
@@ -88,6 +91,8 @@ class Tank extends Sprite {
     objectsInSight.put(ObjectType.ALLY, new ArrayList<PVector>());
     objectsInSight.put(ObjectType.ENEMY, new ArrayList<PVector>());
     objectsInSight.put(ObjectType.OBSTACLE, new ArrayList<PVector>());
+
+    this.CNP = new ContractNetProtocol(this);
   }
 
   boolean isLookingAtTarget(PVector target)
@@ -124,6 +129,8 @@ class Tank extends Sprite {
   {
     healthComponent.takeDamage(damage);
 
+    println("healthComponent.currentHealth:" + healthComponent.currentHealth);
+    println("healthComponent.currentHealth:" + (healthComponent.currentHealth == 1 ? "true" : "flase" ));
     if (healthComponent.currentHealth == 1)
     {
       tankCondition = TankCondition.DISABLED;
@@ -183,9 +190,12 @@ class Tank extends Sprite {
     switch (tankCondition) {
     case ACTIVE:
       handleTankSate();
-      updatePosition();
 
+      updatePosition();
+      cannon.update();
+      break;
     case DISABLED:
+      handleTankSate();
       cannon.update();
       break;
     case DESTROYED:
@@ -205,9 +215,20 @@ class Tank extends Sprite {
       {
         tankState = TankState.AIM;
       }
-      {
+      if (tankCondition == TankCondition.ACTIVE)
+        search();
+
+      if (enemyInSight()) {
+        // Annonsera till team istället för direkt AIM
+        PVector enemyPos = objectsInSight.get(ObjectType.ENEMY).get(0);
+        team.broadcast(new RadioMessage( this, enemyPos));
+        // Sändaren själv går till AIM direkt
+        tankState = TankState.AIM;
+      } else {
         search();
       }
+
+
       break;
     case REPORT:
       returnToBase();
@@ -235,6 +256,23 @@ class Tank extends Sprite {
       println("Shoot");
       fire();
       tankState = TankState.SEARCH;
+      break;
+
+    case CONTRACTED:
+      if ( frameCount -  CNP.contractedFrame >  ContractNetProtocol.CONTRACT_TIMEOUT) {
+        CNP.revokeContract();
+        break;
+      }
+      if (enemyInSight()) {
+        tankState = TankState.AIM;
+        break;
+      }
+      // Om vägen är slut men ingen fiende hittades — häv kontraktet
+      if (path.isEmpty()) {
+        CNP.revokeContract();
+        break;
+      }
+      followPath();
       break;
     }
   }
@@ -647,7 +685,7 @@ class Tank extends Sprite {
         }
 
         // Undvik i första hand noder som tanken haft svårt att ta sig till tidigare, kollisionssvårigheter
-        if (nb.exploredState == ExploredState.PENDING) h += 5000;
+        if (nb.exploredState == ExploredState.PENDING) h += 15000;
         // Undvik helst redan besökta noder
         if (nb.exploredState == ExploredState.VISITED) h += 2000;
         // Undvik att direkt backa tillbaka vägen tanken kom ifrån
@@ -708,7 +746,7 @@ class Tank extends Sprite {
       takeDamage(1);
     }
 
-    if (active) {
+    if (tankCondition == TankCondition.ACTIVE) {
 
       PVector normal = PVector.sub(this.position, hitObject.position);
       normal.normalize();
@@ -926,7 +964,7 @@ class Tank extends Sprite {
         position.x, position.y,
         dirMid.x, dirMid.y,
         rayLength
-      );
+        );
 
       boolean blocked = clearDist < rayLength * 0.99;
 
@@ -935,19 +973,19 @@ class Tank extends Sprite {
       PVector dirA = PVector.fromAngle(angleA);
       PVector dirB = PVector.fromAngle(angleB);
       beginShape();
-        vertex(position.x, position.y);
-        vertex(position.x + dirA.x * clearDist, position.y + dirA.y * clearDist);
-        vertex(position.x + dirB.x * clearDist, position.y + dirB.y * clearDist);
+      vertex(position.x, position.y);
+      vertex(position.x + dirA.x * clearDist, position.y + dirA.y * clearDist);
+      vertex(position.x + dirB.x * clearDist, position.y + dirB.y * clearDist);
       endShape(CLOSE);
 
       // --- Blocked (shadowed) wedge slice ---
       if (blocked) {
         fill(0, 0, 0, 55);
         beginShape();
-          vertex(position.x + dirA.x * clearDist, position.y + dirA.y * clearDist);
-          vertex(position.x + dirA.x * rayLength,  position.y + dirA.y * rayLength);
-          vertex(position.x + dirB.x * rayLength,  position.y + dirB.y * rayLength);
-          vertex(position.x + dirB.x * clearDist,  position.y + dirB.y * clearDist);
+        vertex(position.x + dirA.x * clearDist, position.y + dirA.y * clearDist);
+        vertex(position.x + dirA.x * rayLength, position.y + dirA.y * rayLength);
+        vertex(position.x + dirB.x * rayLength, position.y + dirB.y * rayLength);
+        vertex(position.x + dirB.x * clearDist, position.y + dirB.y * clearDist);
         endShape(CLOSE);
       }
     }
@@ -960,11 +998,11 @@ class Tank extends Sprite {
     strokeWeight(1);
     noFill();
     line(position.x, position.y,
-        position.x + leftDir.x  * rayLength,
-        position.y + leftDir.y  * rayLength);
+      position.x + leftDir.x  * rayLength,
+      position.y + leftDir.y  * rayLength);
     line(position.x, position.y,
-        position.x + rightDir.x * rayLength,
-        position.y + rightDir.y * rayLength);
+      position.x + rightDir.x * rayLength,
+      position.y + rightDir.y * rayLength);
 
     // Arc outline
     beginShape();
@@ -972,7 +1010,7 @@ class Tank extends Sprite {
       float angle = heading - halfFov + (2 * halfFov * i / arcSteps);
       PVector dir = PVector.fromAngle(angle);
       vertex(position.x + dir.x * rayLength,
-            position.y + dir.y * rayLength);
+        position.y + dir.y * rayLength);
     }
     endShape();
 
@@ -980,8 +1018,8 @@ class Tank extends Sprite {
     PVector centerDir = PVector.fromAngle(heading);
     stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 220));
     line(position.x, position.y,
-        position.x + centerDir.x * rayLength,
-        position.y + centerDir.y * rayLength);
+      position.x + centerDir.x * rayLength,
+      position.y + centerDir.y * rayLength);
 
     popStyle();
   }
@@ -1012,7 +1050,7 @@ class Tank extends Sprite {
 
     return maxDist; // Nothing hit — fully clear
   }
-  
+
   void displayPath() {
     if (path.isEmpty()) return;
     pushStyle();

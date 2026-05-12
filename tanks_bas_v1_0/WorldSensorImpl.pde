@@ -20,14 +20,14 @@ class WorldSensorImpl implements WorldSensor {
   }
 
   void updateObjectsInSight(
-      Tank self,
-      float fromX,
-      float fromY,
-      float heading,
-      float viewDistance,
-      float fovDegrees,
-      int myTeamId
-      ) {
+    Tank self,
+    float fromX,
+    float fromY,
+    float heading,
+    float viewDistance,
+    float fovDegrees,
+    int myTeamId
+    ) {
 
     self.objectsInSight.get(ObjectType.ALLY).clear();
     self.objectsInSight.get(ObjectType.ENEMY).clear();
@@ -80,7 +80,7 @@ class WorldSensorImpl implements WorldSensor {
   // Claude AI
   // Helper: does a ray from (rx,ry) to (tx,ty) get blocked by a circle at (cx,cy) with radius r?
   boolean rayBlockedByCircle(float rx, float ry, float tx, float ty,
-                              float cx, float cy, float cr) {
+    float cx, float cy, float cr) {
     // Vector from ray origin to circle center
     float dx = cx - rx, dy = cy - ry;
     // Vector along the ray
@@ -105,14 +105,14 @@ class WorldSensorImpl implements WorldSensor {
   // Check if line-of-sight from (fromX,fromY) to (tx,ty) is blocked by any obstacle,
   // ignoring the specific tank/tree we're testing (skipTank / skipTree)
   boolean isOccluded(float fromX, float fromY, float tx, float ty,
-                    Tank skipTank, Tree skipTree, Tank self) {
+    Tank skipTank, Tree skipTree, Tank self) {
     // Check blocking by other tanks
     for (Tank blocker : allTanks) {
       if (blocker == self)     continue; // Never block with self
       if (blocker == skipTank) continue; // Don't block target with itself
 
       if (rayBlockedByCircle(fromX, fromY, tx, ty,
-                            blocker.position.x, blocker.position.y, blocker.radius)) {
+        blocker.position.x, blocker.position.y, blocker.radius)) {
         // Only counts as a blocker if it's closer than the target
         float blockerDist = dist(fromX, fromY, blocker.position.x, blocker.position.y);
         float targetDist  = dist(fromX, fromY, tx, ty);
@@ -125,7 +125,7 @@ class WorldSensorImpl implements WorldSensor {
       if (blocker == skipTree) continue;
 
       if (rayBlockedByCircle(fromX, fromY, tx, ty,
-                            blocker.position.x, blocker.position.y, blocker.radius)) {
+        blocker.position.x, blocker.position.y, blocker.radius)) {
         float blockerDist = dist(fromX, fromY, blocker.position.x, blocker.position.y);
         float targetDist  = dist(fromX, fromY, tx, ty);
         if (blockerDist < targetDist) return true;
@@ -136,28 +136,13 @@ class WorldSensorImpl implements WorldSensor {
   }
 
 
-  boolean senseEnemyInRay(float fromX, float fromY, float heading, float rayLength, float rayWidth, int myTeamId) {
-    PVector rayDir = new PVector(cos(heading), sin(heading));
-
-    for (Tank t : allTanks) {
-      if (t.isDead())
-        continue;
-      if (t.team.getId() == myTeamId) continue;
-
-      PVector toTank = new PVector(t.position.x - fromX, t.position.y - fromY);
-      float along = toTank.dot(rayDir);
-      if (along < 0 || along > rayLength + t.radius) continue;
-      float perp = abs(toTank.x * rayDir.y - toTank.y * rayDir.x);
-      if (perp < rayWidth * 0.5 + t.radius) return true;
-    }
-    return false;
-  }
-
-  /*   boolean senseTank(Tank self, float fromX, float fromY, float heading, float rayLength, float rayWidth) {
+  /* boolean senseEnemyInRay(float fromX, float fromY, float heading, float rayLength, float rayWidth, int myTeamId) {
    PVector rayDir = new PVector(cos(heading), sin(heading));
    
    for (Tank t : allTanks) {
-   if (t == self) continue;
+   if (t.isDead())
+   continue;
+   if (t.team.getId() == myTeamId) continue;
    
    PVector toTank = new PVector(t.position.x - fromX, t.position.y - fromY);
    float along = toTank.dot(rayDir);

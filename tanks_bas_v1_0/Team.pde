@@ -49,6 +49,17 @@ class Team {
     }
   }
 
+  void broadcast(RadioMessage msg)
+  {
+    for (Tank t : tanks)
+    {
+      if (t != msg.sender)
+      {
+        t.CNP.receiveMessage(msg);
+      }
+    }
+  }
+
   int getId() {
     return this.id;
   }
@@ -76,7 +87,7 @@ class Team {
 
   void onTankDisable(Tank tank)
   {
-    gameManager.grid.markObstacle(tank.position(), tank.radius, 10);
+    gameManager.grid.markObstacle(tank.position(), tank.radius, 15);
   }
 
   boolean isAllTanksDead()

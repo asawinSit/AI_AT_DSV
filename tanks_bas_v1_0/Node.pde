@@ -61,7 +61,7 @@ class Node {
       case VISIBLE:
         return color(200, 220, 180, 160);
       case PENDING:
-        return color(0, 0, 0);
+        return color(255, 255, 0);
       case UNEXPLORED:
         return color(255, 255, 255);
       }

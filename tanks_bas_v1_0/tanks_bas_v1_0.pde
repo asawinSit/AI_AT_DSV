@@ -258,10 +258,12 @@ void displayDebug() {
      selectedTank.displaySightRayCone();
      } */
     for (Tank t : activeTanks) {
-
-      t.displayKnownMap();
-      t.displayPath();
-      t.displaySightRayCone();
+      if (t.tankCondition != TankCondition.DESTROYED)
+      {
+        t.displayKnownMap();
+        t.displayPath();
+        t.displaySightRayCone();
+      }
     }
 
     for (Tree tree : allTrees) {
