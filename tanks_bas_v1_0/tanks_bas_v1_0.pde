@@ -251,19 +251,19 @@ void displayGUI() {
 void displayDebug() {
   if (debug) {
 
-    if (selectedTank != null)
-    {
-      selectedTank.displayKnownMap();
-      selectedTank.displayPath();
-      selectedTank.displaySightRayCone();
+    /*  if (selectedTank != null)
+     {
+     selectedTank.displayKnownMap();
+     selectedTank.displayPath();
+     selectedTank.displaySightRayCone();
+     } */
+    for (Tank t : activeTanks) {
+
+      t.displayKnownMap();
+      t.displayPath();
+      t.displaySightRayCone();
     }
-    /*  for (Tank t : activeTanks) {
-     
-     t.displayKnownMap();
-     t.displayPath();
-     t.displaySightRay();
-     }
-     */
+
     for (Tree tree : allTrees) {
       tree.displayCollisionRadius();
     }
