@@ -20,16 +20,15 @@ class WorldSensorImpl implements WorldSensor {
   }
 
   void updateObjectsInSight(
-    Tank self,
-    float fromX,
-    float fromY,
-    float heading,
-    float viewDistance,
-    float fovDegrees,
-    int myTeamId
-    ) {
+      Tank self,
+      float fromX,
+      float fromY,
+      float heading,
+      float viewDistance,
+      float fovDegrees,
+      int myTeamId
+      ) {
 
-    // Clear previous sightings
     self.objectsInSight.get(ObjectType.ALLY).clear();
     self.objectsInSight.get(ObjectType.ENEMY).clear();
     self.objectsInSight.get(ObjectType.OBSTACLE).clear();
@@ -39,54 +38,42 @@ class WorldSensorImpl implements WorldSensor {
 
     // ---- Tanks ----
     for (Tank t : allTanks) {
-      if (t == self) continue; // Skip self
+      if (t == self) continue;
 
-      PVector toTarget = new PVector(
-        t.position.x - fromX,
-        t.position.y - fromY
-        );
-
+      PVector toTarget = new PVector(t.position.x - fromX, t.position.y - fromY);
       float distance = toTarget.mag();
-
-      if (distance > viewDistance + t.radius)
-        continue;
+      if (distance > viewDistance + t.radius) continue;
 
       toTarget.normalize();
-
       float angle = PVector.angleBetween(forward, toTarget);
+      if (angle >= halfFov) continue;
 
-      if (angle < halfFov) {
-        if (t.isDead())
-        {
-          self.objectsInSight.get(ObjectType.OBSTACLE).add(t.position.copy());
-        } else
-          if (t.team.getId() == myTeamId) {
-            self.objectsInSight.get(ObjectType.ALLY).add(t.position.copy());
-          } else {
-            self.objectsInSight.get(ObjectType.ENEMY).add(t.position.copy());
-          }
+      // *** Occlusion check ***
+      if (isOccluded(fromX, fromY, t.position.x, t.position.y, t, null, self)) continue;
+
+      if (t.isDead()) {
+        self.objectsInSight.get(ObjectType.OBSTACLE).add(t.position.copy());
+      } else if (t.team.getId() == myTeamId) {
+        self.objectsInSight.get(ObjectType.ALLY).add(t.position.copy());
+      } else {
+        self.objectsInSight.get(ObjectType.ENEMY).add(t.position.copy());
       }
     }
 
     // ---- Trees ----
     for (Tree tree : allTrees) {
-      PVector toTarget = new PVector(
-        tree.position.x - fromX,
-        tree.position.y - fromY
-        );
-
+      PVector toTarget = new PVector(tree.position.x - fromX, tree.position.y - fromY);
       float distance = toTarget.mag();
-
-      if (distance > viewDistance + tree.radius)
-        continue;
+      if (distance > viewDistance + tree.radius) continue;
 
       toTarget.normalize();
-
       float angle = PVector.angleBetween(forward, toTarget);
+      if (angle >= halfFov) continue;
 
-      if (angle < halfFov) {
-        self.objectsInSight.get(ObjectType.OBSTACLE).add(tree.position.copy());
-      }
+      // *** Occlusion check ***
+      if (isOccluded(fromX, fromY, tree.position.x, tree.position.y, null, tree, self)) continue;
+
+      self.objectsInSight.get(ObjectType.OBSTACLE).add(tree.position.copy());
     }
   }
 
