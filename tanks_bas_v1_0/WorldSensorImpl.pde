@@ -90,6 +90,7 @@ class WorldSensorImpl implements WorldSensor {
     }
   }
 
+  // Claude AI
   // Helper: does a ray from (rx,ry) to (tx,ty) get blocked by a circle at (cx,cy) with radius r?
   boolean rayBlockedByCircle(float rx, float ry, float tx, float ty,
                               float cx, float cy, float cr) {
@@ -113,6 +114,7 @@ class WorldSensorImpl implements WorldSensor {
     return distSq < cr*cr;
   }
 
+  // Claude AI
   // Check if line-of-sight from (fromX,fromY) to (tx,ty) is blocked by any obstacle,
   // ignoring the specific tank/tree we're testing (skipTank / skipTree)
   boolean isOccluded(float fromX, float fromY, float tx, float ty,

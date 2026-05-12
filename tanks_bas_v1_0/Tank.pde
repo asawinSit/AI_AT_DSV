@@ -903,6 +903,7 @@ class Tank extends Sprite {
     popStyle();
   }
 
+  // Claude AI
   void displaySightRayCone() {
     boolean hit = enemyInSight();
     float halfFov = radians(60 * 0.5);
@@ -985,6 +986,7 @@ class Tank extends Sprite {
     popStyle();
   }
 
+  // Claude AI
   float castRayDistance(float rx, float ry, float rdx, float rdy, float maxDist) {
     int steps = 30; // More = more accurate shadow edge
     float stepSize = maxDist / steps;
