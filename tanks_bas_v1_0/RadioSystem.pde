@@ -1,6 +1,4 @@
-
 class RadioSystem {
-
   static final int BID_COLLECTION_WINDOW = 10;
   Team team;
   ArrayList<RadioMessage> pendingAnnouncements = new ArrayList<>();
@@ -10,11 +8,8 @@ class RadioSystem {
     this.team = team;
   }
 
-  // Tank anropar denna när den ser en fiende
   void announce(RadioMessage msg) {
     pendingAnnouncements.add(msg);
-
-    // Broadcast till alla levande tanks utom sändaren
     for (Tank t : team.tanks) {
       if (!t.isDead()) {
         t.contractHandler.receiveMessage(msg);
@@ -23,11 +18,11 @@ class RadioSystem {
     awardFrame = frameCount + BID_COLLECTION_WINDOW;
   }
 
-  // Anropas varje frame från Team.update()
   void update() {
     if (pendingAnnouncements.isEmpty()) return;
     if (frameCount < awardFrame) return;
 
+    // Collect all bids (only above-threshold ones arrive here now)
     ArrayList<Bid> allBids = new ArrayList<>();
     for (Tank t : team.tanks) {
       if (!t.isDead()) {
@@ -36,30 +31,19 @@ class RadioSystem {
     }
 
     for (RadioMessage announcement : pendingAnnouncements) {
-      ArrayList<Bid> bidsForThis = new ArrayList<>();
 
+      // Award to every tank that bid on this message.
+      // The threshold already filtered out bad fits; we just enforce the cap.
       for (Bid bid : allBids) {
-        if (bid.msg == announcement && bid.bidValue > 0) {
-          bidsForThis.add(bid);
-        }
-      }
+        if (bid.msg != announcement) continue;
+        if (!announcement.needsMoreResponders()) break;  // cap hit
 
-      // Sortera högst först
-      bidsForThis.sort((a, b) -> Float.compare(b.bidValue, a.bidValue));
+        PVector target = (announcement.messageType == MessageType.SEEN_ENEMY)
+          ? announcement.enemyPos
+          : announcement.senderPos;
 
-      // Tilldela till top 2-3 idle tanks
-      int assigned = 0;
-      for (Bid bid : bidsForThis) {
-        if (assigned >= 2) break; // Max 2 tanks per target
-        if (bid.bidder.contractHandler.hasContract()) continue; // Skippa upptagna
-
-        if (announcement.messageType == MessageType.SEEN_ENEMY)
-        {
-          bid.bidder.contractHandler.acceptContract(announcement.enemyPos);
-        } else {
-          bid.bidder.contractHandler.acceptContract(announcement.senderPos);
-        }
-        assigned++;
+        bid.bidder.contractHandler.acceptContract(target);
+        announcement.assignedResponders++;
       }
     }
 
