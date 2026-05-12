@@ -6,7 +6,7 @@ enum TankCondition {
 }
 
 enum TankState {
-  SEARCH, REPORT, STOP
+  SEARCH, REPORT, STOP, AIM, SHOOT
 }
 
 enum Nav_Imp {
@@ -40,6 +40,7 @@ class Tank extends Sprite {
 
   // Sensor
   WorldSensor worldSensor;
+  HashMap<ObjectType, ArrayList<PVector>> objectsInSight = new HashMap<>();
   int cellSize; // Should the tank know this? Argument, tank team decision for accurate search.
   float   rayLength  = 200;
   float   rayWidth;
@@ -82,10 +83,40 @@ class Tank extends Sprite {
     nav_Imp = Nav_Imp.DEFAULT;
     tankCondition = TankCondition.ACTIVE;
     rayWidth   = radius /2;
+
+    objectsInSight = new HashMap<ObjectType, ArrayList<PVector>>();
+    objectsInSight.put(ObjectType.ALLY, new ArrayList<PVector>());
+    objectsInSight.put(ObjectType.ENEMY, new ArrayList<PVector>());
+    objectsInSight.put(ObjectType.OBSTACLE, new ArrayList<PVector>());
+  }
+
+  boolean isLookingAtTarget(PVector target)
+  {
+    PVector dir = PVector.sub(target, position);
+
+    float targetAngle = dir.heading();
+
+    float angleDiff =
+      abs(
+      atan2(
+      sin(targetAngle - heading),
+      cos(targetAngle - heading)
+      )
+      );
+    print( angleDiff < radians(0.4));
+    return angleDiff < radians(0.4);
+  }
+
+  void aim()
+  {
+    stopMoving();
+
+    turn(objectsInSight.get(ObjectType.ENEMY).get(0));
   }
 
   void fire()
   {
+
     cannon.fire();
   }
 
@@ -96,6 +127,7 @@ class Tank extends Sprite {
     if (healthComponent.currentHealth == 1)
     {
       tankCondition = TankCondition.DISABLED;
+      team.onTankDisable(this);
     }
 
     if (!alreadyDead && isDead())
@@ -112,7 +144,7 @@ class Tank extends Sprite {
 
   void onDeath()
   {
-    team.onTankDied(this);
+    team.onTankDied();
     tankCondition = TankCondition.DESTROYED;
     active = false;
   }
@@ -135,7 +167,7 @@ class Tank extends Sprite {
 
   void update() {
     if (active != true) return;
-
+    worldSensor.updateObjectsInSight(this, position.x, position.y, heading, rayLength, 60, team.getId());
     int col = worldToCol(position.x);
     int row = worldToRow(position.y);
     String key = getPositionKey(col, row);
@@ -147,9 +179,7 @@ class Tank extends Sprite {
       currentNode.exploredState = ExploredState.VISITED;
       perceiveNeighbours();
     }
-    if (enemyInSight()) {
-      println("Enemy detected");
-    }
+
     switch (tankCondition) {
     case ACTIVE:
       handleTankSate();
@@ -171,10 +201,10 @@ class Tank extends Sprite {
         path.clear();
         reportWaitFrames = 0;
         tankState = TankState.REPORT;
-      } else if (enemyInSight())
+      } else if (enemyInSight() && cannon.isLoaded)
       {
-        fire();
-      } else
+        tankState = TankState.AIM;
+      }
       {
         search();
       }
@@ -184,6 +214,27 @@ class Tank extends Sprite {
       break;
     case STOP:
       stopMoving();
+      break;
+
+    case AIM:
+
+      if (enemyInSight())
+      {
+        if (!isLookingAtTarget(objectsInSight.get(ObjectType.ENEMY).get(0)))
+        {
+          aim();
+        } else {
+          println("Shoot");
+          tankState = TankState.SHOOT;
+        }
+      } else {
+        tankState = TankState.SEARCH;
+      }
+      break;
+    case SHOOT:
+      println("Shoot");
+      fire();
+      tankState = TankState.SEARCH;
       break;
     }
   }
@@ -211,7 +262,7 @@ class Tank extends Sprite {
 
   void returnToBase() {
     // Still travelling home
-    if  ( currentNode.type != NodeType.HOME_BASE )
+    if  ( currentNode.type != team.homeBaseNodeType )
     {
 
       if (goalNode == null)
@@ -239,7 +290,7 @@ class Tank extends Sprite {
       followPath();
       return;
     }
-    if  ( currentNode.type == NodeType.HOME_BASE && !worldSensor.isMoreThanHalfInsideABase(team.id, this))
+    if  ( currentNode.type == team.homeBaseNodeType && !worldSensor.isMoreThanHalfInsideABase(team.id, this))
     {
       PVector dir = worldSensor.getBaseDirection(team.id, this);
 
@@ -273,7 +324,7 @@ class Tank extends Sprite {
   }
 
   Node getNearestBaseNode() {
-    return getNearestNodeOfType(NodeType.HOME_BASE);
+    return getNearestNodeOfType(team.homeBaseNodeType);
   }
 
   Node getNearestNodeOfType(NodeType goalType) {
@@ -419,14 +470,14 @@ class Tank extends Sprite {
       int nodeCol = currentNode.col + colDirections[i];
       int nodeRow = currentNode.row + rowDirections[i];
       String key = getPositionKey(nodeCol, nodeRow);
+      NodeType sensedType = worldSensor.senseTypeAt(nodeCol, nodeRow);
 
+      float positionX = nodeCol * cellSize + cellSize;
+      float posiitonY = nodeRow * cellSize + cellSize;
       // Behandlar bara noder som inte redan lagts till i kunskapskartan
       if (!knownMap.containsKey(key)) {
         // Fråga världen vad som finns på possitionen av den kommande nya grannen (sensor)
-        NodeType sensedType = worldSensor.senseTypeAt(nodeCol, nodeRow);
 
-        float positionX = nodeCol * cellSize + cellSize;
-        float posiitonY = nodeRow * cellSize + cellSize;
         Node newNode = new Node(nodeCol, nodeRow, positionX, posiitonY);
         newNode.type = sensedType;
 
@@ -439,6 +490,11 @@ class Tank extends Sprite {
         // Beräkna antal nodsteg till hembasen via bakåtriktad BFS, denna information
         // används senare av hueristiken i selectFrontierNode() och computePath().
         computeDistanceFromBase(newNode);
+      } else {
+        if ( knownMap.get(key).type == sensedType)
+          continue;
+        println("change node" + knownMap.get(key).type+ "to" + sensedType);
+        knownMap.get(key).type = sensedType;
       }
     }
   }
@@ -463,7 +519,7 @@ class Tank extends Sprite {
     HashMap<Node, Integer> dist = new HashMap<Node, Integer>();
 
     for (Node n : knownMap.values()) {
-      if (n.type == NodeType.HOME_BASE) {
+      if (n.type == team.homeBaseNodeType) {
         dist.put(n, 0);
         queue.add(n);
       }
@@ -516,7 +572,7 @@ class Tank extends Sprite {
       float score = 0;
 
       // Undiv att utforska hembasen
-      if (n.type == NodeType.HOME_BASE) {
+      if (n.type == team.homeBaseNodeType) {
         score += 20000;
       } else {
         // Föredra noder nära hembasen, uforska succesivt utåt från basen
@@ -583,7 +639,7 @@ class Tank extends Sprite {
         float h = 0;
 
         // Undvik att gå igenom hembasen
-        if (nb.type == NodeType.HOME_BASE) {
+        if (nb.type == team.homeBaseNodeType) {
           h += 10000;
         } else {
           // föredra noder som är nära basen
@@ -694,20 +750,13 @@ class Tank extends Sprite {
 
 
   boolean enemyInSight() {
-    return worldSensor.senseEnemyInRay(
-      position.x, position.y,
-      this.velocity.heading(), rayLength, rayWidth,
-      team.getId()
-      );
+    for (PVector p : objectsInSight.get(ObjectType.ENEMY))
+    {
+      return true;
+    }
+
+    return false;
   }
-
-  //boolean tankInSight() {
-  //  return worldSensor.senseTank(this,
-  //    position.x, position.y,
-  //    this.velocity.heading(), rayLength, rayWidth
-  //    );
-  //}
-
 
   void seek() {
     PVector desired = PVector.sub(targetNode.position, this.position);
@@ -715,6 +764,23 @@ class Tank extends Sprite {
     PVector steer = PVector.sub(desired, this.velocity);
     steer.limit(turnStep);
     this.applyForce(steer);
+  }
+
+  void turn(PVector target) {
+
+    PVector dir = PVector.sub(target, position);
+
+    float targetAngle = dir.heading();
+
+    float angleDiff =
+      atan2(
+      sin(targetAngle - heading),
+      cos(targetAngle - heading)
+      );
+
+    angleDiff = constrain(angleDiff, -turnStep, turnStep);
+
+    heading += angleDiff;
   }
 
   void applyForce(PVector force) {
@@ -837,6 +903,61 @@ class Tank extends Sprite {
     popStyle();
   }
 
+  void displaySightRayCone() {
+    boolean hit = enemyInSight();
+    float halfFov = radians(60 * 0.5);
+
+    // Left edge direction
+    PVector leftDir = PVector.fromAngle(heading - halfFov);
+
+    // Right edge direction
+    PVector rightDir = PVector.fromAngle(heading + halfFov);
+
+    // Cone edge points
+    float leftX  = position.x + leftDir.x * rayLength;
+    float leftY  = position.y + leftDir.y * rayLength;
+
+    float rightX = position.x + rightDir.x * rayLength;
+    float rightY = position.y + rightDir.y * rayLength;
+
+    // Center line
+    PVector centerDir = PVector.fromAngle(heading);
+    float tipX = position.x + centerDir.x * rayLength;
+    float tipY = position.y + centerDir.y * rayLength;
+
+    pushStyle();
+
+    // Fill cone with arc
+    fill(hit ? color(255, 50, 50, 50) : color(255, 220, 0, 40));
+    noStroke();
+
+    beginShape();
+    vertex(position.x, position.y); // Origin
+
+    // Create arc from left to right
+    int arcSteps = 20; // More steps = smoother arc
+    for (int i = 0; i <= arcSteps; i++) {
+      float angle = heading - halfFov + (2 * halfFov * i / arcSteps);
+      PVector dir = PVector.fromAngle(angle);
+      vertex(position.x + dir.x * rayLength,
+        position.y + dir.y * rayLength);
+    }
+
+    endShape(CLOSE);
+
+    // Outline edges
+    stroke(hit ? color(255, 50, 50, 180) : color(255, 220, 0, 180));
+    strokeWeight(1);
+
+    line(position.x, position.y, leftX, leftY);
+    line(position.x, position.y, rightX, rightY);
+
+    // Center direction line
+    stroke(hit ? color(255, 50, 50, 220) : color(255, 220, 0, 220));
+    line(position.x, position.y, tipX, tipY);
+
+    popStyle();
+  }
   void displayPath() {
     if (path.isEmpty()) return;
     pushStyle();

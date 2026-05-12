@@ -2,6 +2,8 @@
 //Chris Pilegård chpi8651
 class Team {
 
+
+
   Tank[] tanks = new Tank[3];
   int id; // team red 0, team blue 1.
   int tank_size;
@@ -14,11 +16,12 @@ class Team {
   float homebase_width = 150;
   float homebase_height = 350;
 
+  NodeType homeBaseNodeType;
   color team_color;
 
   GameManager gameManager;
 
-  Team (GameManager gameManager, int team_id, int tank_size, color c,
+  Team (GameManager gameManager, int team_id, int tank_size, color c, NodeType n,
     PVector tank0_startpos, int tank0_id,
     PVector tank1_startpos, int tank1_id,
     PVector tank2_startpos, int tank2_id)
@@ -27,6 +30,7 @@ class Team {
     this.id = team_id;
     this.tank_size = tank_size;
     this.team_color = c;
+    this.homeBaseNodeType = n;
     this.tank0_startpos.set(tank0_startpos);
     this.tank1_startpos.set(tank1_startpos);
     this.tank2_startpos.set(tank2_startpos);
@@ -60,13 +64,19 @@ class Team {
     }
   }
 
-  void onTankDied(Tank tank)
+  void onTankDied()
   {
+
     if (isAllTanksDead())
     {
       println("Team eliminated");
       gameManager.setGamOver(true);
     }
+  }
+
+  void onTankDisable(Tank tank)
+  {
+    gameManager.grid.markObstacle(tank.position(), tank.radius, 10);
   }
 
   boolean isAllTanksDead()

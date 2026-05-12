@@ -42,7 +42,8 @@ int currentFrameRate = ORIGINAL_FRAME_RATE;
 
 boolean pause;
 boolean debug;
-
+Tank selectedTank;
+boolean mouse_pressed;
 
 
 Timer timer;
@@ -62,13 +63,14 @@ void setup() {
   pause = true;
   debug = false;
 
-  gameManager = new GameManager();
+
   grid = new Grid(GRID_COLUMNS, GRID_ROWS, GRID_CELL_SIZE);
+  gameManager = new GameManager(grid);
 
   setupTrees();
   setupTeams();
 
-  sensor = new WorldSensorImpl(grid, allTanks, team0, team1);
+  sensor = new WorldSensorImpl(grid, allTanks, team0, team1, allTrees);
   setupTanks();
 
   collisionManager = new CollisionManager();
@@ -107,7 +109,7 @@ void activateTank(Tank tank) {
   tank.worldSensor = sensor;
   tank.cellSize = grid.grid_size;
 
-  ArrayList<Node> baseNodes = buildBaseNodes(tank.team, NodeType.HOME_BASE);
+  ArrayList<Node> baseNodes = buildBaseNodes(tank.team, tank.team.homeBaseNodeType);
   tank.addHomeBase(baseNodes);
 
   tank.tankState = TankState.SEARCH;
@@ -128,11 +130,11 @@ void addCollision() {
 }
 
 void setupTeams() {
-  team0 = new Team(gameManager, 0, TANK_SIZE, team0Color, TEAM0_TANK0_START_POSITION, 1, TEAM0_TANK1_START_POSITION, 2, TEAM0_TANK2_START_POSITION, 3);
-  team1 = new Team(gameManager, 1, TANK_SIZE, team1Color, TEAM1_TANK0_START_POSITION, 4, TEAM1_TANK1_START_POSITION, 5, TEAM1_TANK2_START_POSITION, 6);
+  team0 = new Team(gameManager, 0, TANK_SIZE, team0Color, NodeType.TEAM_RED_BASE, TEAM0_TANK0_START_POSITION, 1, TEAM0_TANK1_START_POSITION, 2, TEAM0_TANK2_START_POSITION, 3);
+  team1 = new Team(gameManager, 1, TANK_SIZE, team1Color, NodeType.TEAM_BLUE_BASE, TEAM1_TANK0_START_POSITION, 4, TEAM1_TANK1_START_POSITION, 5, TEAM1_TANK2_START_POSITION, 6);
 
-  markBaseType(team0, NodeType.HOME_BASE);
-  markBaseType(team1, NodeType.ENEMY_BASE);
+  markBaseType(team0, NodeType.TEAM_RED_BASE);
+  markBaseType(team1, NodeType.TEAM_BLUE_BASE);
 }
 
 void setupTrees() {
@@ -248,16 +250,30 @@ void displayGUI() {
 
 void displayDebug() {
   if (debug) {
-    for (Tank t : activeTanks) {
-      t.displayKnownMap();
-      t.displayPath();
-      t.displaySightRay();
-    }
 
+    if (selectedTank != null)
+    {
+      selectedTank.displayKnownMap();
+      selectedTank.displayPath();
+      selectedTank.displaySightRayCone();
+    }
+    /*  for (Tank t : activeTanks) {
+     
+     t.displayKnownMap();
+     t.displayPath();
+     t.displaySightRay();
+     }
+     */
     for (Tree tree : allTrees) {
       tree.displayCollisionRadius();
     }
   }
+}
+void mousePressed() {
+  println("---------------------------------------------------------");
+  println("*** mousePressed() - Musknappen har tryckts ned.");
+
+  mouse_pressed = true;
 }
 
 void keyReleased() {
@@ -319,5 +335,30 @@ void keyReleased() {
       frameRate(currentFrameRate);
       println("Frame rate: " + currentFrameRate);
     }
+  }
+
+  if (mouse_pressed) {
+    println("if (mouse_pressed)");
+    //allTanks[tankInFocus].spin(3);
+    int mx = mouseX;
+    int my = mouseY;
+
+    for (int i = 0; i < allTanks.length; i++) {
+
+      Tank t = allTanks[i];
+
+      float d = dist(mx, my,
+        t.position().x,
+        t.position().y);
+
+      if (d < t.radius) {
+
+        selectedTank = t;
+        break;
+      }
+    }
+
+
+    mouse_pressed = false;
   }
 }

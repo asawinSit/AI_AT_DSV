@@ -1,7 +1,7 @@
 //Asawin Sitthi assi7068
 //Chris Pilegård chpi8651
 enum NodeType {
-  OBSTACLE, HOME_BASE, ENEMY_BASE, EMPTY
+  OBSTACLE, TEAM_RED_BASE, TEAM_BLUE_BASE, EMPTY
 }
 
 
@@ -60,14 +60,16 @@ class Node {
         return color(150, 255, 150);
       case VISIBLE:
         return color(200, 220, 180, 160);
-      default:
-        return color(80, 80, 80, 120);
+      case PENDING:
+        return color(0, 0, 0);
+      case UNEXPLORED:
+        return color(255, 255, 255);
       }
     case OBSTACLE:
       return color(255, 0, 0);
-    case HOME_BASE:
+    case TEAM_RED_BASE:
       return color(255, 150, 150);
-    case ENEMY_BASE:
+    case TEAM_BLUE_BASE:
       return color(150, 150, 255);
     default:
       return color(0);

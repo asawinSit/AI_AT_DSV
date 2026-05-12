@@ -3,12 +3,14 @@
 class WorldSensorImpl implements WorldSensor {
   Grid grid;
   Tank[] allTanks = new Tank[6];
+  Tree[] allTrees = new Tree[3];
   Team myTeam;
   Team enemyTeam;
 
-  WorldSensorImpl(Grid grid, Tank[] allTanks, Team myTeam, Team enemyTeam ) {
+  WorldSensorImpl(Grid grid, Tank[] allTanks, Team myTeam, Team enemyTeam, Tree[] allTrees) {
     this.grid = grid;
     this.allTanks = allTanks;
+    this.allTrees = allTrees;
     this.myTeam = myTeam;
     this.enemyTeam = enemyTeam;
   }
@@ -17,10 +19,86 @@ class WorldSensorImpl implements WorldSensor {
     return grid.senseTypeAt(col, row);
   }
 
+  void updateObjectsInSight(
+    Tank self,
+    float fromX,
+    float fromY,
+    float heading,
+    float viewDistance,
+    float fovDegrees,
+    int myTeamId
+    ) {
+
+    // Clear previous sightings
+    self.objectsInSight.get(ObjectType.ALLY).clear();
+    self.objectsInSight.get(ObjectType.ENEMY).clear();
+    self.objectsInSight.get(ObjectType.OBSTACLE).clear();
+
+    PVector forward = PVector.fromAngle(heading);
+    float halfFov = radians(fovDegrees * 0.5);
+
+    // ---- Tanks ----
+    for (Tank t : allTanks) {
+      if (t == self) continue; // Skip self
+
+      PVector toTarget = new PVector(
+        t.position.x - fromX,
+        t.position.y - fromY
+        );
+
+      float distance = toTarget.mag();
+
+      if (distance > viewDistance + t.radius)
+        continue;
+
+      toTarget.normalize();
+
+      float angle = PVector.angleBetween(forward, toTarget);
+
+      if (angle < halfFov) {
+        if (t.isDead())
+        {
+          self.objectsInSight.get(ObjectType.OBSTACLE).add(t.position.copy());
+        } else
+          if (t.team.getId() == myTeamId) {
+            self.objectsInSight.get(ObjectType.ALLY).add(t.position.copy());
+          } else {
+            self.objectsInSight.get(ObjectType.ENEMY).add(t.position.copy());
+          }
+      }
+    }
+
+    // ---- Trees ----
+    for (Tree tree : allTrees) {
+      PVector toTarget = new PVector(
+        tree.position.x - fromX,
+        tree.position.y - fromY
+        );
+
+      float distance = toTarget.mag();
+
+      if (distance > viewDistance + tree.radius)
+        continue;
+
+      toTarget.normalize();
+
+      float angle = PVector.angleBetween(forward, toTarget);
+
+      if (angle < halfFov) {
+        self.objectsInSight.get(ObjectType.OBSTACLE).add(tree.position.copy());
+      }
+    }
+  }
+
+
+
+
   boolean senseEnemyInRay(float fromX, float fromY, float heading, float rayLength, float rayWidth, int myTeamId) {
     PVector rayDir = new PVector(cos(heading), sin(heading));
 
     for (Tank t : allTanks) {
+      if (t.isDead())
+        continue;
       if (t.team.getId() == myTeamId) continue;
 
       PVector toTank = new PVector(t.position.x - fromX, t.position.y - fromY);

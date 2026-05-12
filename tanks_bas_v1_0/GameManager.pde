@@ -1,10 +1,12 @@
 class GameManager
 {
   boolean gameOver;
+  Grid grid;
 
-  GameManager()
+  GameManager(Grid grid)
   {
     gameOver = false;
+    this.grid = grid;
   }
 
   boolean isGamOver()
