@@ -251,20 +251,22 @@ void displayGUI() {
 void displayDebug() {
   if (debug) {
 
-    /*  if (selectedTank != null)
-     {
-     selectedTank.displayKnownMap();
-     selectedTank.displayPath();
-     selectedTank.displaySightRayCone();
-     } */
-    for (Tank t : activeTanks) {
-      if (t.tankCondition != TankCondition.DESTROYED)
-      {
-        t.displayKnownMap();
-        t.displayPath();
-        t.displaySightRayCone();
-      }
+    if (selectedTank != null)
+    {
+
+      selectedTank.displayKnownMap();
+      selectedTank.displayPath();
+      selectedTank.displaySightRayCone();
     }
+
+    /*  for (Tank t : activeTanks) {
+     if (t.tankCondition != TankCondition.DESTROYED)
+     {
+     t.displayKnownMap();
+     t.displayPath();
+     t.displaySightRayCone();
+     }
+     } */
 
     for (Tree tree : allTrees) {
       tree.displayCollisionRadius();

@@ -100,7 +100,6 @@ class CannonBall extends Sprite
     if (this.isInMotion) {
 
       if (hitObject != cannon.owner) {
-        println("CannonBall collision Tank");
         displayExplosion();
       }
     }

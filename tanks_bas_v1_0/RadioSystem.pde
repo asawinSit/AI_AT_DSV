@@ -1,6 +1,6 @@
 
 class RadioSystem {
-    
+
   static final int BID_COLLECTION_WINDOW = 10;
   Team team;
   ArrayList<RadioMessage> pendingAnnouncements = new ArrayList<>();
@@ -28,7 +28,6 @@ class RadioSystem {
     if (pendingAnnouncements.isEmpty()) return;
     if (frameCount < awardFrame) return;
 
-    // Samla bud från alla tanks
     ArrayList<Bid> allBids = new ArrayList<>();
     for (Tank t : team.tanks) {
       if (!t.isDead()) {
@@ -36,20 +35,31 @@ class RadioSystem {
       }
     }
 
-    // För varje announcement, hitta högst budgivare
     for (RadioMessage announcement : pendingAnnouncements) {
-      Tank winner   = null;
-      float bestVal = -Float.MAX_VALUE;
+      ArrayList<Bid> bidsForThis = new ArrayList<>();
 
       for (Bid bid : allBids) {
-        if (bid.msg == announcement && bid.bidValue > bestVal) {
-          bestVal = bid.bidValue;
-          winner  = bid.bidder;
+        if (bid.msg == announcement && bid.bidValue > 0) {
+          bidsForThis.add(bid);
         }
       }
 
-      if (winner != null) {
-        winner.contractHandler.acceptContract(announcement.enemyPos);
+      // Sortera högst först
+      bidsForThis.sort((a, b) -> Float.compare(b.bidValue, a.bidValue));
+
+      // Tilldela till top 2-3 idle tanks
+      int assigned = 0;
+      for (Bid bid : bidsForThis) {
+        if (assigned >= 2) break; // Max 2 tanks per target
+        if (bid.bidder.contractHandler.hasContract()) continue; // Skippa upptagna
+
+        if (announcement.messageType == MessageType.SEEN_ENEMY)
+        {
+          bid.bidder.contractHandler.acceptContract(announcement.enemyPos);
+        } else {
+          bid.bidder.contractHandler.acceptContract(announcement.senderPos);
+        }
+        assigned++;
       }
     }
 

@@ -32,7 +32,6 @@ class HealthComponent
     {
       currentHealth = 0;
     }
-    println("take damage");
     return true;
   }
 

@@ -50,7 +50,6 @@ class Tank extends Sprite {
   LRTA LRTA_Nav = new LRTA();
 
   //dicision making
-  //ContractNetProtocol CNP;
   ContractHandler contractHandler;
 
   // Navigation
@@ -110,7 +109,6 @@ class Tank extends Sprite {
       cos(targetAngle - heading)
       )
       );
-    print( angleDiff < radians(0.4));
     return angleDiff < radians(0.4);
   }
 
@@ -129,10 +127,11 @@ class Tank extends Sprite {
 
   void takeDamage(int damage)
   {
+    if (isDead())
+      return;
     healthComponent.takeDamage(damage);
+    team.radioSystem.announce(new RadioMessage(this, null, MessageType.BEEN_HIT));
 
-    println("healthComponent.currentHealth:" + healthComponent.currentHealth);
-    println("healthComponent.currentHealth:" + (healthComponent.currentHealth == 1 ? "true" : "flase" ));
     if (healthComponent.currentHealth == 1)
     {
       tankCondition = TankCondition.DISABLED;
@@ -219,9 +218,9 @@ class Tank extends Sprite {
       }
       if (enemyInSight()) {
         PVector enemyPos = objectsInSight.get(ObjectType.ENEMY).get(0);
-        team.radioSystem.announce(new RadioMessage(this, enemyPos));
+        team.radioSystem.announce(new RadioMessage(this, enemyPos, MessageType.SEEN_ENEMY));
       }
-      if (tankCondition == TankCondition.ACTIVE){
+      if (tankCondition == TankCondition.ACTIVE) {
         search();
       }
       break;
@@ -240,17 +239,21 @@ class Tank extends Sprite {
         {
           aim();
         } else {
-          println("Shoot");
+
           tankState = TankState.SHOOT;
         }
       } else {
-        tankState = TankState.SEARCH;
+        if (tankCondition == TankCondition.ACTIVE) {
+          tankState = TankState.SEARCH;
+        }
       }
       break;
     case SHOOT:
-      println("Shoot");
       fire();
-      tankState = TankState.SEARCH;
+      if (tankCondition == TankCondition.ACTIVE) {
+        tankState = TankState.SEARCH;
+      }
+
       break;
 
     case CONTRACTED:
@@ -267,7 +270,12 @@ class Tank extends Sprite {
         contractHandler.revokeContract();
         break;
       }
-      followPath();
+      if (tankCondition == TankCondition.ACTIVE) {
+        followPath();
+      } else {
+        turn(path.get(path.size() - 1).position);
+      }
+
       break;
     }
   }
@@ -526,7 +534,6 @@ class Tank extends Sprite {
       } else {
         if ( knownMap.get(key).type == sensedType)
           continue;
-        println("change node" + knownMap.get(key).type+ "to" + sensedType);
         knownMap.get(key).type = sensedType;
       }
     }
@@ -880,6 +887,10 @@ class Tank extends Sprite {
     popMatrix();
 
     cannon.display();
+
+    textSize(24);
+    fill(30);
+    text(tank_id, this.position.x-6, this.position.y - 25);
   }
 
   void displaySightRay() {
@@ -1102,8 +1113,9 @@ class Tank extends Sprite {
     Node bestNode = null;
     float bestDist = Float.MAX_VALUE;
     for (Node n : knownMap.values()) {
+      if (n.type == NodeType.OBSTACLE) continue;
       float d = dist(pos.x, pos.y, n.position.x, n.position.y);
-      if (d < bestDist) {
+      if (d < bestDist ) {
         bestDist = d;
         bestNode = n;
       }
