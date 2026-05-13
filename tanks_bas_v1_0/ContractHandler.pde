@@ -17,7 +17,7 @@ class ContractHandler {
     inbox.add(msg);
   }
 
-  ArrayList<Bid> evaluateAndBid(ArrayList<RadioMessage> pendingAnnouncements) {
+  ArrayList<Bid> evaluateAndBid() {
     ArrayList<Bid> bids = new ArrayList<>();
 
     // Re-bid on current contract if we have one
