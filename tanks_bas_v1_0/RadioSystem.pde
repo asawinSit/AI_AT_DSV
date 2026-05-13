@@ -1,5 +1,5 @@
 class RadioSystem {
-  static final int BID_COLLECTION_WINDOW = 2;
+  static final int BID_COLLECTION_WINDOW = 10;
   Team team;
   ArrayList<RadioMessage> pendingAnnouncements = new ArrayList<>();
   int awardFrame = 0;
@@ -21,36 +21,40 @@ class RadioSystem {
 
   void update() {
     if (pendingAnnouncements.isEmpty()) return;
-    if (frameCount < awardFrame) return;
 
-    // Collect all bids (only above-threshold ones arrive here now)
+    // Collect all bids (including re-bids on current contracts)
     ArrayList<Bid> allBids = new ArrayList<>();
     for (Tank t : team.tanks) {
       if (!t.isDead()) {
-        allBids.addAll(t.contractHandler.evaluateAndBid());
+        allBids.addAll(t.contractHandler.evaluateAndBid(pendingAnnouncements));
+      }
+    }
+    // println("pendingAnnouncements.size() " + pendingAnnouncements.size());
+
+    // Group bids by bidder to find each tank's best option
+    HashMap<Tank, Bid> bestBidPerTank = new HashMap<>();
+    for (Bid bid : allBids) {
+      if (!bestBidPerTank.containsKey(bid.bidder) ||
+        bid.bidValue > bestBidPerTank.get(bid.bidder).bidValue) {
+        bestBidPerTank.put(bid.bidder, bid);
       }
     }
 
-    for (RadioMessage announcement : pendingAnnouncements) {
-      ArrayList<Bid> bidsForThis = new ArrayList<>();
-      for (Bid bid : allBids) {
-        if (bid.msg == announcement) {
-          bidsForThis.add(bid);
-        }
-      }
+    // Award each tank its best contract
+    for (Tank tank : bestBidPerTank.keySet()) {
+      Bid winningBid = bestBidPerTank.get(tank);
 
-      bidsForThis.sort((a, b) -> Float.compare(b.bidValue, a.bidValue));
+      if (winningBid.bidValue >= MIN_SCORE_TO_WIN) {
+        PVector target = (winningBid.msg.messageType == MessageType.SEEN_ENEMY)
+          ? winningBid.msg.enemyPos
+          : winningBid.msg.senderPos;
 
-      for (Bid bid : bidsForThis) {
-        if (bid.bidValue < MIN_SCORE_TO_WIN) break; // sorted, so rest are worse
-        PVector target = (announcement.messageType == MessageType.SEEN_ENEMY)
-          ? announcement.enemyPos
-          : announcement.senderPos;
-        bid.bidder.contractHandler.acceptContract(target);
-        println(" Winner for task: " + announcement.messageType + " from " + announcement.sender.tank_id + " is " + bid.bidder.tank_id);
+        tank.contractHandler.acceptContract(winningBid.msg, target, winningBid.bidValue);
+        /*   println("Winner for task: " + winningBid.msg.messageType +
+         " from " + winningBid.msg.sender.tank_id +
+         " is " + tank.tank_id + " (score: " + winningBid.bidValue + ")"); */
       }
     }
-
 
     pendingAnnouncements.clear();
   }

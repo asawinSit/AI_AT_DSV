@@ -80,4 +80,9 @@ class Cannon
     this.cannonBall.acceleration.set(0, 0, 0);
     resetTimer();
   }
+
+  void disable()
+  {
+    cannonBall.updateLoadedPosition(owner.position());
+  }
 }

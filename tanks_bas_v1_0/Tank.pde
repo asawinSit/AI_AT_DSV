@@ -167,6 +167,7 @@ class Tank extends Sprite {
   {
     team.onTankDied();
     tankCondition = TankCondition.DESTROYED;
+    cannon.disable();
     active = false;
   }
 
@@ -252,6 +253,7 @@ class Tank extends Sprite {
       break;
 
     case AIM:
+
       reportEnemySeen();
       if (enemyVisible)
       {
