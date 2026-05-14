@@ -1,5 +1,7 @@
-class HealthComponent
-{
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
+
+class HealthComponent{
   int currentHealth;
   int maxHealth;
 

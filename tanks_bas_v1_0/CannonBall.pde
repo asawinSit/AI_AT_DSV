@@ -1,28 +1,28 @@
-class CannonBall extends Sprite
-{
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
+
+class CannonBall extends Sprite{
   ArrayList<Particle> particles;
 
-  PVector positionPrev; //spara temp senaste pos.
+  PVector positionPrev;
 
   PVector velocity;
   PVector acceleration;
 
-  boolean isInMotion; // The shot is on its way.
+  boolean isInMotion;
   boolean isExploding;
   boolean isVisible;
 
   Cannon cannon;
 
-  // Size
+  // Size radius
   float r = 8;
 
   color my_color;
 
   float topspeed = 10;
 
-  //**************************************************
   CannonBall(Cannon cannon) {
-    //println("New CannonBall()");
     this.cannon = cannon;
     this.positionPrev = new PVector();
     this.position =  new PVector();
@@ -30,27 +30,20 @@ class CannonBall extends Sprite
     this.acceleration = new PVector();
     this.isInMotion = false;
     this.isVisible = true;
-
-    //this.diameter = this.img.width/2;
     this.radius = this.r;
     this.isExploding = false;
-
     this.name = "bullet";
   }
 
-  //**************************************************
   void setColor(color c) {
     this.my_color = c;
   }
+
   PVector position() {
     return this.position;
   }
 
-  //**************************************************
-  // Called by tank object.
   void updateLoadedPosition(PVector pvec) {
-    //println("*** CannonBall.updateLoadedPosition()");
-
     this.position.set(pvec);
     this.positionPrev.set(this.position);
     if (!this.isVisible) {
@@ -58,35 +51,24 @@ class CannonBall extends Sprite
     }
   }
 
-
-  //**************************************************
-  // Called by tank object, when shooting.
   void applyForce(PVector force) {
     this.acceleration.add(force);
   }
 
-
-
-  //**************************************************
   void displayExplosion() {
-
     this.isExploding = true;
     this.isVisible = false;
     this.isInMotion = false;
-
     this.particles = new ArrayList<Particle>();
 
-    // Spawn particles at cannonball world position
     for (int i = 0; i < 20; i++) {
       this.particles.add(new Particle(this.position.copy()));
     }
   }
 
-  //**************************************************
   void update() {
     if (this.isInMotion) {
-      this.positionPrev.set(this.position); // spara senaste pos.
-
+      this.positionPrev.set(this.position);
       this.velocity.add(this.acceleration);
       this.velocity.limit(this.topspeed);
       this.position.add(this.velocity);
@@ -95,26 +77,21 @@ class CannonBall extends Sprite
   }
 
   void onCollisionDetected(Sprite hitObject) {
-    if (isExploding)
-      return;
-    if (this.isInMotion) {
+    if (isExploding) return;
 
+    if (this.isInMotion) {
       if (hitObject != cannon.owner) {
         displayExplosion();
       }
     }
   }
 
-  void onBoundaryCollisionDetected()
-  {
-    if (isExploding)
-      return;
+  void onBoundaryCollisionDetected() {
+    if (isExploding) return;
     displayExplosion();
   }
 
-  //**************************************************
   void display() {
-
     imageMode(CENTER);
     stroke(0);
     strokeWeight(2);

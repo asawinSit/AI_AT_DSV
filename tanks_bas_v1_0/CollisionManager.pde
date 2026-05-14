@@ -1,5 +1,6 @@
 //Asawin Sitthi assi7068
 //Chris Pilegård chpi8651
+
 class CollisionManager {
   ArrayList<Sprite> objects = new ArrayList<Sprite>();
 
@@ -31,8 +32,6 @@ class CollisionManager {
 
     return distSq < (minDistance * minDistance);
   }
-
-
 
   boolean isCollidingWithBoundary(Sprite self) {
     if ( self.position.x > width-self.radius) {
@@ -66,7 +65,6 @@ class CollisionManager {
 interface BoundaryCollisionListener {
   void onBoundaryCollisionDetected();
 }
-
 
 interface CollisionListener {
   void onCollisionDetected(Sprite hitObject);

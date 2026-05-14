@@ -1,3 +1,6 @@
+//Asawin Sitthi assi7068
+//Chris Pilegård chpi8651
+
 /**
  * A ticker class to manage animation timing.
  */
