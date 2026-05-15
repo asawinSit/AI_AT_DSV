@@ -42,6 +42,7 @@ int currentFrameRate = ORIGINAL_FRAME_RATE;
 
 boolean pause;
 boolean debug;
+boolean singleTankDebugToggle = false;
 Tank selectedTank;
 boolean mouse_pressed;
 
@@ -235,7 +236,7 @@ void displayGUI() {
   if (pause) {
     textSize(24);
     fill(30);
-    text("Paused!\n(\'p\'-continues)\n(\'d\'-debug)\n(\'1\'/\'2\'-increase/lower fps) \n(\'a\'-change exploration algorithm)", width/2, 50);
+    text("Paused!\n(\'p\'-continues)\n(\'d\'-debug)\n(\'1\'/\'2\'-increase/lower fps) \n(\'3\'-change to single tank debug) \n(left click on the tank to select) \n(\'a\'-change exploration algorithm)", width/2, 50);
   }
 
   if (gameManager.isGamOver()) {
@@ -251,22 +252,29 @@ void displayGUI() {
 void displayDebug() {
   if (debug) {
 
-    if (selectedTank != null)
+    if (singleTankDebugToggle)
     {
+      if (selectedTank != null)
+      {
 
-      selectedTank.displayKnownMap();
-      selectedTank.displayPath();
-      selectedTank.displaySightRayCone();
+        selectedTank.displayKnownMap();
+        selectedTank.displayPath();
+        selectedTank.displaySightRayCone();
+      }
+    } else {
+      for (Tank t : activeTanks) {
+        if (t.tankCondition != TankCondition.DESTROYED)
+        {
+          t.displayKnownMap();
+          t.displayPath();
+          t.displaySightRayCone();
+        }
+      }
     }
 
-    /*  for (Tank t : activeTanks) {
-     if (t.tankCondition != TankCondition.DESTROYED)
-     {
-     t.displayKnownMap();
-     t.displayPath();
-     t.displaySightRayCone();
-     }
-     } */
+
+
+
 
     for (Tree tree : allTrees) {
       tree.displayCollisionRadius();
@@ -310,19 +318,6 @@ void keyReleased() {
     }
   }
 
-  if (key == 'w') {
-    for (Tank t : activeTanks)
-    {
-      t.tankState = TankState.SEARCH;
-    }
-  }
-
-  if (key == 'q') {
-    for (Tank t : team0.tanks)
-    {
-      t.takeDamage(1);
-    }
-  }
 
 
   if (key == '1') {
@@ -339,6 +334,11 @@ void keyReleased() {
       frameRate(currentFrameRate);
       println("Frame rate: " + currentFrameRate);
     }
+  }
+
+
+  if (key == '3') {
+    singleTankDebugToggle = !singleTankDebugToggle;
   }
 
   if (mouse_pressed) {
