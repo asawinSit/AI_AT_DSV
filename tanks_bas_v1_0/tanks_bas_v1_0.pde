@@ -236,7 +236,8 @@ void displayGUI() {
   if (pause) {
     textSize(24);
     fill(30);
-    text("Paused!\n(\'p\'-continues)\n(\'d\'-debug)\n(\'1\'/\'2\'-increase/lower fps) \n(\'3\'-change to single tank debug) \n(left click on the tank to select) \n(\'a\'-change exploration algorithm)", width/2, 50);
+    text("Paused!\n(\'p\'-continues)\n(\'d\'-debug)\n(\'1\'/\'2\'-increase/lower fps) \n(\'3\'-change to single tank debug) " +
+      " \n(left click on the tank to select)\n(\'4\'-change comunication impelmentation)  \n(\'a\'-change exploration algorithm)", width/2, 50);
   }
 
   if (gameManager.isGamOver()) {
@@ -339,6 +340,14 @@ void keyReleased() {
 
   if (key == '3') {
     singleTankDebugToggle = !singleTankDebugToggle;
+  }
+
+  if (key == '4') {
+    for (Tank t : activeTanks)
+    {
+      t.comunication_Imp = t.comunication_Imp == Comunication_Imp.CNP ?  Comunication_Imp.NONE : Comunication_Imp.CNP;
+      println("tank comunication implementation: " + t.comunication_Imp );
+    }
   }
 
   if (mouse_pressed) {

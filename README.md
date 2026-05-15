@@ -15,13 +15,16 @@ Inga utomstående programbibliotek behövs.
 
 ## Kontroller
 
-| Input | Handling                            |
-| ----- | ----------------------------------- |
-| `p`   | Pausa                               |
-| `d`   | Visa debug/ navigeringvisualisering |
-| `a`   | Byta navigeringsalgoritm            |
-| `1`   | Öka FPS                             |
-| `2`   | Minska FPS                          |
+| Input                   | Handling                                   |
+| ----------------------- | ------------------------------------------ |
+| `p`                     | Pausa                                      |
+| `d`                     | Visa debug/ navigeringvisualisering        |
+| `a`                     | Växla mellan navigeringsalgoritmer         |
+| `1`                     | Öka FPS                                    |
+| `2`                     | Minska FPS                                 |
+| `3`                     | Växla mellan vald tank och alla tank debug |
+| `4`                     | Växla mellan comunication impelmentationer |
+| `Vänster klick på tank` | Välja en tank                              |
 
 ---
 

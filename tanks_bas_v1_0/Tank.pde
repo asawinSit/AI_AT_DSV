@@ -13,6 +13,10 @@ enum Nav_Imp {
   LRTA, DEFAULT
 }
 
+enum Comunication_Imp {
+  CNP, NONE
+}
+
 class Tank extends Sprite {
 
   // Physics
@@ -37,7 +41,7 @@ class Tank extends Sprite {
   TankState tankState;
 
   Nav_Imp nav_Imp;
-
+  Comunication_Imp comunication_Imp;
   // Sensor
   WorldSensor worldSensor;
   HashMap<ObjectType, ArrayList<PVector>> objectsInSight = new HashMap<>();
@@ -84,6 +88,7 @@ class Tank extends Sprite {
     cannon  = new Cannon(this);
     healthComponent = new HealthComponent(3);
     nav_Imp = Nav_Imp.DEFAULT;
+    comunication_Imp = Comunication_Imp.CNP;
     tankCondition = TankCondition.ACTIVE;
     rayWidth   = radius /2;
 

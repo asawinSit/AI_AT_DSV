@@ -27,7 +27,7 @@ class RadioSystem {
   void announce(RadioMessage msg) {
     pendingAnnouncements.add(msg);
     for (Tank t : team.tanks) {
-      if (!t.isDead() && msg.sender != t) {
+      if (!t.isDead() && msg.sender != t && t.comunication_Imp == Comunication_Imp.CNP) {
         t.contractHandler.receiveMessage(msg);
       }
     }
