@@ -2,15 +2,15 @@
 //Chris Pilegård chpi8651
 
 /**
-  RadioSystem, implementerar "managern" i Contract Net Protocol.
-
-  RadioSystem ansvarar för:
-  1. Annonsering av uppgifter (task announcement) till alla levande teammedlemmar
-  2. Insamling av bud (bid collection)
-  3. Tilldelning av kontrakt till bäst lämpade agent(er) (award)
-
-  Russell, S. & Norvig, P. (2021). Artificial Intelligence: A Modern Approach, Global Edition, 4th ed. Pearson. Kap.17.4 " Making Collective Decisions"
-*/
+ RadioSystem, implementerar "managern" i Contract Net Protocol.
+ 
+ RadioSystem ansvarar för:
+ 1. Annonsering av uppgifter (task announcement) till alla levande teammedlemmar
+ 2. Insamling av bud (bid collection)
+ 3. Tilldelning av kontrakt till bäst lämpade agent(er) (award)
+ 
+ Russell, S. & Norvig, P. (2021). Artificial Intelligence: A Modern Approach, Global Edition, 4th ed. Pearson. Kap.17.4 " Making Collective Decisions"
+ */
 class RadioSystem {
   static final float MIN_SCORE_TO_WIN = 0.15;
 
@@ -22,22 +22,22 @@ class RadioSystem {
   }
 
   /**
-    Sänder ut task announcement till alla levande tanks som tillhör detta team (ingår i fas 2, se ContractHandler).
-  */
+   Sänder ut task announcement till alla levande tanks som tillhör detta team (ingår i fas 2, se ContractHandler).
+   */
   void announce(RadioMessage msg) {
     pendingAnnouncements.add(msg);
     for (Tank t : team.tanks) {
-      if (!t.isDead()) {
+      if (!t.isDead() && msg.sender != t) {
         t.contractHandler.receiveMessage(msg);
       }
     }
   }
 
   /**
-    Samlar in bud och tilldelar kontrakt, körs varje frame. Ingår i fas 3 och 4 (se ContractHandler), men ur managerns persektiv.
-
-    Varje tank tilldelas sitt bästa kontrakt (kan vara samma uppgift eller olika uppgifter). 
-  */
+   Samlar in bud och tilldelar kontrakt, körs varje frame. Ingår i fas 3 och 4 (se ContractHandler), men ur managerns persektiv.
+   
+   Varje tank tilldelas sitt bästa kontrakt (kan vara samma uppgift eller olika uppgifter).
+   */
   void update() {
     if (pendingAnnouncements.isEmpty()) return; // Finns ingenting att buda på denna frame.
 
