@@ -72,3 +72,8 @@ Inlamningsuppgift_3/Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 Inlamningsuppgift_3/DerivedDataCache/*
+
+# VS Code
+.vscode/
+*.compileCommands
+compileCommands_*.json
