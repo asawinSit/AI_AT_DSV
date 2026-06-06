@@ -4,27 +4,27 @@
 
 ## Dependencies
 
-För att köra detta måste man ha **Processing** nedladdat.
+För att köra detta måste man ha **Unreal Engine 5.7** nedladdat.
 
 Inga utomstående programbibliotek behövs.
 
 ## Avändning
 
-1. Öppna projektet i **Processing**
+1. Öppna projektet i **Unreal Engine**
 2. Klicka på `run`
 
 ## Kontroller
 
-| Input                   | Handling                                   |
-| ----------------------- | ------------------------------------------ |
-| `p`                     | Pausa                                      |
-| `d`                     | Visa debug/ navigeringvisualisering        |
-| `a`                     | Växla mellan navigeringsalgoritmer         |
-| `1`                     | Öka FPS                                    |
-| `2`                     | Minska FPS                                 |
-| `3`                     | Växla mellan vald tank och alla tank debug |
-| `4`                     | Växla mellan comunication impelmentationer |
-| `Vänster klick på tank` | Välja en tank                              |
+| Input                   | Handling              |
+| ----------------------- | --------------------- |
+| `w`                     | Gå fram               |
+| `s`                     | Backa                 |
+| `a`                     | Rotera vänster        |
+| `d`                     | Rotera höger          |
+| `q`                     | Växla mellan AutoMove |
+| `p`                     | Pausa                 |
+| `esc`                   | Stänga av             |
+| `Vänster klick på tank` | Skjuta                |
 
 ---
 
