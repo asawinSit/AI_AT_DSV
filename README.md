@@ -10,8 +10,8 @@ Inga utomstående programbibliotek behövs.
 
 ## Avändning
 
-1. Öppna projektet i **Unreal Engine**
-2. Klicka på `run`
+1. Öppna projektet i **Unreal Engine**, kan öppnas via .uproject filen
+2. Klicka på `Play`
 
 ## Kontroller
 
